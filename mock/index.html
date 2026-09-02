@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>Fold8 Launcher — UI Mock</title>
+<style>
+  :root { --zoom: 0.38; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #17191d;
+    color: #c8cdd6;
+    font-family: 'Avenir Next', 'Hiragino Sans', system-ui, sans-serif;
+    min-height: 100vh;
+  }
+  header {
+    display: flex; align-items: center; gap: 16px;
+    padding: 14px 24px; border-bottom: 1px solid #2a2e36;
+    position: sticky; top: 0; background: #17191dee; backdrop-filter: blur(6px); z-index: 10;
+  }
+  header h1 { font-size: 15px; font-weight: 600; letter-spacing: .04em; }
+  header .sub { font-size: 12px; color: #7a8291; }
+  .ctrl { display: flex; gap: 6px; margin-left: auto; }
+  .ctrl button {
+    background: #22262e; color: #c8cdd6; border: 1px solid #343a45;
+    padding: 6px 14px; border-radius: 6px; font-size: 12px; cursor: pointer;
+  }
+  .ctrl button.on { background: #3d5a80; border-color: #5a7ba6; color: #fff; }
+  main {
+    display: flex; align-items: flex-start; justify-content: center;
+    gap: 40px; padding: 36px; flex-wrap: wrap;
+  }
+  .device { display: flex; flex-direction: column; gap: 10px; }
+  .device .cap { font-size: 12px; color: #7a8291; font-family: Menlo, monospace; }
+  .screen {
+    zoom: var(--zoom);
+    overflow: hidden; position: relative;
+    border-radius: 36px;
+    box-shadow: 0 0 0 14px #000, 0 0 0 16px #333, 0 60px 120px rgba(0,0,0,.5);
+    display: flex; flex-direction: column;
+    font-family: var(--font-ui);
+    background: var(--wallpaper);
+    color: var(--text);
+  }
+  #cover  { width: 1248px; height: 1972px; }
+  #mainscr { width: 2448px; height: 1848px; }
+
+  /* ---- decor overlays ---- */
+  .screen.scanlines::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 50;
+    background: repeating-linear-gradient(0deg, rgba(255,255,255,.022) 0 2px, transparent 2px 6px);
+  }
+  .screen.griddots {
+    background-image: radial-gradient(circle, var(--line) 2px, transparent 2.5px), var(--wallpaper);
+    background-size: 104px 104px, cover;
+  }
+
+  /* ---- status bar ---- */
+  .status {
+    display: flex; align-items: center; padding: 20px 48px 0;
+    font-family: var(--font-mono); font-size: 30px; color: var(--text);
+    flex: 0 0 auto; height: 84px;
+  }
+  .status .clock { font-size: 42px; font-weight: 600; letter-spacing: .02em; }
+  .status .right { margin-left: auto; display: flex; gap: 28px; align-items: center; font-size: 26px; color: var(--text-dim); }
+  .status .batt { color: var(--accent); }
+
+  /* ---- generic module ---- */
+  .module {
+    background: var(--surface); border: 2px solid var(--line);
+    border-radius: var(--mod-radius); position: relative; overflow: hidden;
+    padding: 24px 28px; display: flex; flex-direction: column;
+  }
+  .screen.brackets .module::before, .screen.brackets .module::after {
+    content: ''; position: absolute; width: 28px; height: 28px; pointer-events: none;
+  }
+  .screen.brackets .module::before { top: -2px; left: -2px; border-top: 4px solid var(--accent); border-left: 4px solid var(--accent); }
+  .screen.brackets .module::after { bottom: -2px; right: -2px; border-bottom: 4px solid var(--accent); border-right: 4px solid var(--accent); }
+  .mod-title {
+    font-family: var(--font-mono); font-size: 22px; letter-spacing: .18em;
+    color: var(--text-dim); margin-bottom: 12px; text-transform: uppercase;
+  }
+
+  /* ---- zones ---- */
+  .zone-head {
+    font-family: var(--font-mono); font-size: 22px; letter-spacing: .22em;
+    color: var(--text-dim); padding: 0 8px 10px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .zone-head::after { content: ''; flex: 1; height: 2px; background: var(--line); }
+  .widgets-grid { display: grid; gap: 24px; grid-auto-rows: 200px; grid-auto-flow: dense; }
+  .folders-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+  .apps-grid { display: grid; grid-template-columns: repeat(6, 1fr); row-gap: 34px; align-content: start; }
+
+  /* ---- app icon ---- */
+  .app { display: flex; flex-direction: column; align-items: center; gap: 10px; position: relative; }
+  .app .icon {
+    width: var(--icon-size); height: var(--icon-size);
+    border-radius: var(--icon-radius);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: calc(var(--icon-size) * .42);
+    font-family: var(--font-ui);
+    border: 2px solid rgba(255,255,255,.09);
+    position: relative;
+  }
+  .screen.mono-icons .app .icon { filter: saturate(0); }
+  .app .label { font-size: 24px; color: var(--text-dim); max-width: 176px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .badge {
+    position: absolute; top: -12px; right: -14px; z-index: 2;
+    background: var(--accent); color: var(--badge-fg);
+    font-family: var(--font-mono); font-size: 24px; font-weight: 700;
+    min-width: 44px; height: 44px; padding: 0 10px; border-radius: 22px;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* ---- folder ---- */
+  .folder { min-height: 320px; }
+  .folder .mini {
+    flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
+    align-content: start; padding-top: 6px;
+  }
+  .folder .mini i {
+    display: block; aspect-ratio: 1; border-radius: calc(var(--icon-radius) * .6);
+    border: 1px solid rgba(255,255,255,.1); position: relative;
+  }
+  .folder .mini i .badge { top: -8px; right: -8px; min-width: 32px; height: 32px; font-size: 18px; }
+  .folder .count { font-family: var(--font-mono); font-size: 20px; color: var(--text-dim); margin-top: 10px; align-self: flex-end; }
+
+  /* ---- search / dock ---- */
+  .search {
+    height: 108px; border-radius: 54px;
+    background: var(--surface); border: 2px solid var(--line);
+    display: flex; align-items: center; gap: 24px; padding: 0 44px;
+    font-size: 34px; color: var(--text-dim); font-family: var(--font-mono);
+  }
+  .search .cursor { color: var(--accent); animation: blink 1.1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .search .mic { margin-left: auto; color: var(--accent2); }
+  .dock {
+    display: flex; justify-content: center; gap: 44px;
+    background: var(--surface); border: 2px solid var(--line);
+    border-radius: var(--mod-radius); padding: 26px 48px;
+  }
+  .dock .app .label { display: none; }
+
+  /* ---- screen layouts ---- */
+  .cover-body { flex: 1; display: flex; flex-direction: column; gap: 30px; padding: 24px 48px 40px; min-height: 0; }
+  .cover-body .apps-grid { flex: 1; }
+  .main-body { flex: 1; display: flex; padding: 24px 48px 12px; gap: 0; min-height: 0; }
+  .pane { flex: 1; display: flex; flex-direction: column; gap: 28px; min-width: 0; }
+  .hinge { flex: 0 0 72px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; }
+  .hinge .rule { flex: 1; width: 0; border-left: 3px dashed var(--line); }
+  .hinge .tag {
+    font-family: var(--font-mono); font-size: 20px; letter-spacing: .3em;
+    color: var(--text-dim); writing-mode: vertical-rl;
+  }
+  .main-bottom { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 22px; padding: 10px 48px 36px; }
+  .main-bottom .search { width: 1000px; }
+  .gesture-bar { height: 10px; width: 420px; border-radius: 5px; background: var(--text-dim); opacity: .6; align-self: center; margin-bottom: 16px; flex: 0 0 auto; }
+
+  /* ---- widget internals ---- */
+  .w-big { font-family: var(--font-mono); font-weight: 700; color: var(--accent); line-height: 1; }
+  .w-row { display: flex; align-items: baseline; gap: 18px; }
+  .w-dim { color: var(--text-dim); font-size: 24px; }
+  .w-fill { flex: 1; }
+  .hourly { display: flex; gap: 0; margin-top: auto; }
+  .hourly div { flex: 1; text-align: center; font-family: var(--font-mono); font-size: 24px; color: var(--text-dim); }
+  .hourly b { display: block; color: var(--text); font-size: 26px; margin-bottom: 6px; }
+  .radar-map {
+    position: absolute; inset: 0; opacity: .5;
+    background:
+      radial-gradient(340px 200px at 68% 40%, var(--warn) 0%, transparent 55%),
+      radial-gradient(220px 160px at 20% 65%, var(--accent2) 0%, transparent 60%),
+      linear-gradient(var(--line) 1px, transparent 1px) 0 0 / 120px 120px,
+      linear-gradient(90deg, var(--line) 1px, transparent 1px) 0 0 / 120px 120px;
+  }
+  .radar-cross { position: absolute; top: 42%; left: 55%; color: var(--warn); font-size: 40px; }
+  .meter { height: 14px; border-radius: 7px; background: var(--line); overflow: hidden; margin-top: 10px; }
+  .meter i { display: block; height: 100%; background: var(--accent); }
+  .cal-event {
+    background: color-mix(in srgb, var(--accent2) 18%, transparent);
+    border-left: 6px solid var(--accent2); border-radius: 8px;
+    padding: 16px 20px; margin-top: 8px;
+  }
+  .cal-event b { font-size: 30px; display: block; }
+  .cal-event span { font-family: var(--font-mono); font-size: 24px; color: var(--text-dim); }
+  .stat-line { display: flex; align-items: baseline; gap: 14px; font-family: var(--font-mono); font-size: 26px; margin-top: 8px; }
+  .stat-line b { font-size: 34px; color: var(--text); }
+  .stat-line .u { color: var(--text-dim); font-size: 22px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>FOLD8 LAUNCHER — UI MOCK</h1>
+  <span class="sub">cover 1248×1972 / main 2448×1848 (native px)</span>
+  <div class="ctrl" id="theme-ctrl"></div>
+  <div class="ctrl" id="zoom-ctrl"></div>
+</header>
+<main>
+  <div class="device">
+    <span class="cap">COVER — 5.5&quot; 10:16 (closed)</span>
+    <div class="screen" id="cover"></div>
+  </div>
+  <div class="device">
+    <span class="cap">MAIN — 7.6&quot; 4:3 (unfolded)</span>
+    <div class="screen" id="mainscr"></div>
+  </div>
+</main>
+<script src="renderer.js"></script>
+</body>
+</html>

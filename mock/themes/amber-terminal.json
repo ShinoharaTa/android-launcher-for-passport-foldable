@@ -1,0 +1,56 @@
+{
+  "meta": {
+    "name": "AMBER TERMINAL",
+    "description": "SF端末風。暗い機体色に琥珀の計器と青緑のサブ表示。コーナーブラケットと走査線。",
+    "version": 1
+  },
+  "palette": {
+    "surface": "#141a21cc",
+    "line": "#2b3542",
+    "accent": "#ffb454",
+    "accent2": "#5fd7e8",
+    "warn": "#ff5c57",
+    "text": "#e9e3d4",
+    "textDim": "#8b96a6"
+  },
+  "wallpaper": "linear-gradient(165deg, #0b0d10 0%, #10161d 55%, #131a14 100%)",
+  "typography": {
+    "ui": "'Avenir Next', 'Hiragino Sans', system-ui, sans-serif",
+    "mono": "'JetBrains Mono', 'SF Mono', Menlo, monospace"
+  },
+  "decor": {
+    "cornerBrackets": true,
+    "scanlines": true,
+    "gridDots": true,
+    "zoneHeaders": true,
+    "hingeMarker": true
+  },
+  "icon": {
+    "shape": "squircle",
+    "size": 128,
+    "labels": true,
+    "monochrome": false
+  },
+  "moduleRadius": 18,
+  "screens": {
+    "cover": {
+      "grid": { "cols": 6, "cellPx": 208 },
+      "widgets": [
+        { "widget": "weatherRadar", "w": 4, "h": 2 },
+        { "widget": "weatherNow", "w": 2, "h": 2 }
+      ]
+    },
+    "main": {
+      "anchorSide": "right",
+      "extensionWidgets": [
+        { "widget": "calendar", "w": 3, "h": 2 },
+        { "widget": "alarm", "w": 3, "h": 1 },
+        { "widget": "sysmon", "w": 3, "h": 1 },
+        { "widget": "health", "w": 2, "h": 2 },
+        { "widget": "steps", "w": 2, "h": 1 },
+        { "widget": "sleep", "w": 2, "h": 1 },
+        { "widget": "transit", "w": 4, "h": 1 }
+      ]
+    }
+  }
+}

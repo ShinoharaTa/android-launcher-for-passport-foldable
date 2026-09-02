@@ -1,0 +1,55 @@
+{
+  "meta": {
+    "name": "PAPER WHITE",
+    "description": "対比用のミニマル紙テーマ。装飾なし・円形アイコン・細い罫線。同じレイアウト定義が別世界観になることの証明。",
+    "version": 1
+  },
+  "palette": {
+    "surface": "#ffffffd9",
+    "line": "#d9d2c4",
+    "accent": "#c25e2e",
+    "accent2": "#3d6b8f",
+    "warn": "#c0392b",
+    "text": "#2b2a26",
+    "textDim": "#8a8578"
+  },
+  "wallpaper": "linear-gradient(180deg, #f5f1e8 0%, #ece6d8 100%)",
+  "typography": {
+    "ui": "'Hiragino Mincho ProN', 'Avenir Next', serif",
+    "mono": "'SF Mono', Menlo, monospace"
+  },
+  "decor": {
+    "cornerBrackets": false,
+    "scanlines": false,
+    "gridDots": false,
+    "zoneHeaders": false,
+    "hingeMarker": false
+  },
+  "icon": {
+    "shape": "circle",
+    "size": 120,
+    "labels": true,
+    "monochrome": false
+  },
+  "moduleRadius": 28,
+  "screens": {
+    "cover": {
+      "grid": { "cols": 6, "cellPx": 208 },
+      "widgets": [
+        { "widget": "weatherRadar", "w": 4, "h": 2 },
+        { "widget": "weatherNow", "w": 2, "h": 2 }
+      ]
+    },
+    "main": {
+      "anchorSide": "right",
+      "extensionWidgets": [
+        { "widget": "calendar", "w": 3, "h": 2 },
+        { "widget": "alarm", "w": 3, "h": 1 },
+        { "widget": "sysmon", "w": 3, "h": 1 },
+        { "widget": "health", "w": 2, "h": 2 },
+        { "widget": "sleep", "w": 2, "h": 1 },
+        { "widget": "transit", "w": 2, "h": 1 }
+      ]
+    }
+  }
+}

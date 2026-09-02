@@ -1,0 +1,42 @@
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+local.properties
+
+# Android
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+bin/
+gen/
+out/
+release/
+captures/
+.cxx/
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+*.ipr
+*.iws
+.navigation/
+
+# Keystore
+*.jks
+*.keystore
+
+# Kotlin
+.kotlin/
+
+# macOS
+.DS_Store
+
+# Logs / dumps
+*.log
+*.hprof
+
+# 過去セッションのトランスクリプト(会話ログ。参照用でコミット対象外)
+_transcripts/
