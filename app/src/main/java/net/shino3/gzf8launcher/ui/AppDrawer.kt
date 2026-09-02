@@ -36,6 +36,9 @@ import net.shino3.gzf8launcher.data.AppEntry
 import net.shino3.gzf8launcher.theme.LocalLauncherTheme
 import net.shino3.gzf8launcher.ui.drag.DragPayload
 import net.shino3.gzf8launcher.ui.drag.dragSource
+import android.appwidget.AppWidgetProviderInfo
+import androidx.compose.ui.platform.LocalContext
+import net.shino3.gzf8launcher.model.AppWidgetItem
 import net.shino3.gzf8launcher.model.NativeWidgetItem
 import net.shino3.gzf8launcher.widget.NativeWidget
 
@@ -50,6 +53,9 @@ fun AppDrawer(
     hidden: Boolean,
     toItem: (AppEntry) -> net.shino3.gzf8launcher.model.AppItem,
     widgets: List<NativeWidget<*>>,
+    providers: List<AppWidgetProviderInfo>,
+    /** ドロップ先グリッドのセル幅 px。AppWidget の最小サイズをセル数に直すのに使う。 */
+    cellPx: Float,
     onLaunch: (AppEntry) -> Unit,
     onClose: () -> Unit,
 ) {
@@ -113,7 +119,7 @@ fun AppDrawer(
             }
         }
         if (tab == DrawerTab.WIDGETS) {
-            WidgetList(widgets)
+            WidgetList(widgets, providers, cellPx, columns)
             return@Column
         }
         LazyVerticalGrid(columns = GridCells.Fixed(columns), modifier = Modifier.fillMaxSize()) {
@@ -136,11 +142,31 @@ fun AppDrawer(
 
 enum class DrawerTab { APPS, WIDGETS }
 
-/** 自作ウィジェットの一覧。長押しドラッグでホームに置く。 */
+/** 自作ウィジェットと AppWidget の一覧。長押しドラッグでホームに置く。 */
 @Composable
-private fun WidgetList(widgets: List<NativeWidget<*>>) {
+private fun WidgetList(widgets: List<NativeWidget<*>>, providers: List<AppWidgetProviderInfo>, cellPx: Float, columns: Int) {
     val theme = LocalLauncherTheme.current
+    val context = LocalContext.current
+    val pm = context.packageManager
+    val sorted = remember(providers) { providers.sortedBy { it.loadLabel(pm).lowercase() } }
     LazyVerticalGrid(columns = GridCells.Fixed(2), modifier = Modifier.fillMaxSize()) {
+        items(sorted, key = { it.provider.flattenToString() + it.profile.hashCode() }) { info ->
+            val label = remember(info) { info.loadLabel(pm) }
+            val appLabel = remember(info) { runCatching { pm.getApplicationLabel(pm.getApplicationInfo(info.provider.packageName, 0)).toString() }.getOrDefault(info.provider.packageName) }
+            val w = spanFor(info.minWidth, cellPx).coerceIn(1, 6)
+            val h = spanFor(info.minHeight, cellPx).coerceIn(1, 6)
+            Column(
+                modifier = Modifier
+                    .padding(6.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .border(1.dp, theme.colors.line, RoundedCornerShape(10.dp))
+                    .dragSource(DragPayload(AppWidgetItem(info.provider.flattenToString()), null, null, label, w, h))
+                    .padding(12.dp),
+            ) {
+                Text(label, color = theme.colors.text, fontFamily = FontFamily.Monospace, fontSize = 12.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                Text("$appLabel  //  $w x $h", color = theme.colors.textDim, fontFamily = FontFamily.Monospace, fontSize = 10.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+            }
+        }
         items(widgets, key = { it.spec.id }) { widget ->
             val spec = widget.spec
             Column(
@@ -162,3 +188,7 @@ private fun WidgetList(widgets: List<NativeWidget<*>>) {
         }
     }
 }
+
+/** px の最小サイズをセル数に切り上げる。 */
+private fun spanFor(minPx: Int, cellPx: Float): Int =
+    if (cellPx <= 0f) 1 else kotlin.math.ceil(minPx / cellPx).toInt().coerceAtLeast(1)

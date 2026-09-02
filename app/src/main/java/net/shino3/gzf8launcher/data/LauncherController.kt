@@ -1,6 +1,9 @@
 package net.shino3.gzf8launcher.data
 
+import android.appwidget.AppWidgetProviderInfo
+import android.content.ComponentName
 import android.content.Context
+import android.os.UserHandle
 import android.content.pm.LauncherApps
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -12,6 +15,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import net.shino3.gzf8launcher.model.AppItem
 import net.shino3.gzf8launcher.model.AppKey
+import net.shino3.gzf8launcher.model.AppWidgetItem
+import net.shino3.gzf8launcher.model.ZoneId
+import net.shino3.gzf8launcher.widget.AppWidgetHostManager
 import net.shino3.gzf8launcher.model.FolderItem
 import net.shino3.gzf8launcher.model.FolderRule
 import net.shino3.gzf8launcher.model.ItemRef
@@ -27,6 +33,28 @@ class LauncherController(private val context: Context, private val scope: Corout
     private val appRepository = AppRepository(context)
     private val layoutRepository = LayoutRepository(context)
     private val usageRepository = UsageRepository(context)
+    val appWidgets = AppWidgetHostManager(context)
+
+    /** バインド許可と設定アクティビティはアクティビティの結果が要るので、その部分だけ外に出す。 */
+    interface AppWidgetBindHost {
+        fun requestBind(appWidgetId: Int, provider: ComponentName, profile: UserHandle)
+        fun requestConfigure(appWidgetId: Int)
+    }
+
+    var bindHost: AppWidgetBindHost? = null
+
+    private class PendingAppWidget(
+        val appWidgetId: Int,
+        val info: AppWidgetProviderInfo,
+        val zone: ZoneId,
+        val col: Int,
+        val row: Int,
+        val w: Int,
+        val h: Int,
+        val columns: Int,
+    )
+
+    private var pendingAppWidget: PendingAppWidget? = null
 
     private val _apps = MutableStateFlow<Map<AppKey, AppEntry>>(emptyMap())
     val apps: StateFlow<Map<AppKey, AppEntry>> = _apps
@@ -103,6 +131,15 @@ class LauncherController(private val context: Context, private val scope: Corout
     fun drop(session: DragSession, target: DropTarget?, columns: Int, dockSlots: Int) {
         if (target == null) return
         val p = session.payload
+        val item = p.item
+        if (item is AppWidgetItem && item.appWidgetId < 0) {
+            // ドロワーから来た新しい AppWidget。バインドしてから置く
+            if (target is DropTarget.Grid) {
+                val (col, row) = target.cellFor(session.position, p.w, p.h)
+                beginAppWidgetPlacement(item, target.zone, col, row, p.w, p.h, target.columns)
+            }
+            return
+        }
         edit { layout ->
             val base = p.source?.let { LayoutEditor.remove(layout, it) } ?: layout
             when (target) {
@@ -134,10 +171,71 @@ class LauncherController(private val context: Context, private val scope: Corout
         LayoutEditor.resize(layout, ref, w, h, columns)
     }
 
-    /** 拒否された(null を返した)操作はレイアウトを変えない。 */
-    private fun edit(transform: (Layout) -> Layout?) {
-        scope.launch { layoutRepository.update { transform(it) ?: it } }
+    // ---- AppWidget のバインド ----
+
+    private fun beginAppWidgetPlacement(item: AppWidgetItem, zone: ZoneId, col: Int, row: Int, w: Int, h: Int, columns: Int) {
+        val provider = ComponentName.unflattenFromString(item.provider) ?: return
+        val info = appWidgets.providerInfo(provider) ?: return
+        val id = appWidgets.allocateId()
+        pendingAppWidget = PendingAppWidget(id, info, zone, col, row, w, h, columns)
+        if (appWidgets.bindIfAllowed(id, provider, info.profile)) {
+            onBindResult(true)
+        } else {
+            bindHost?.requestBind(id, provider, info.profile) ?: onBindResult(false)
+        }
     }
+
+    fun onBindResult(ok: Boolean) {
+        val pending = pendingAppWidget ?: return
+        if (!ok) {
+            cancelPendingAppWidget()
+            return
+        }
+        if (pending.info.configure != null) {
+            bindHost?.requestConfigure(pending.appWidgetId) ?: onConfigureResult(false)
+        } else {
+            onConfigureResult(true)
+        }
+    }
+
+    fun onConfigureResult(ok: Boolean) {
+        val pending = pendingAppWidget ?: return
+        pendingAppWidget = null
+        if (!ok) {
+            appWidgets.deleteId(pending.appWidgetId)
+            return
+        }
+        val item = AppWidgetItem(pending.info.provider.flattenToString(), pending.appWidgetId)
+        val next = LayoutEditor.dropOnGrid(layout.value, pending.zone, pending.col, pending.row, item, pending.w, pending.h, pending.columns)
+        if (next == null) {
+            appWidgets.deleteId(pending.appWidgetId)
+            return
+        }
+        scope.launch { layoutRepository.update { next } }
+    }
+
+    private fun cancelPendingAppWidget() {
+        pendingAppWidget?.let { appWidgets.deleteId(it.appWidgetId) }
+        pendingAppWidget = null
+    }
+
+    /** 拒否された(null を返した)操作はレイアウトを変えない。消えた AppWidget の ID は解放する。 */
+    private fun edit(transform: (Layout) -> Layout?) {
+        scope.launch {
+            layoutRepository.update { layout ->
+                val next = transform(layout) ?: return@update layout
+                (appWidgetIds(layout) - appWidgetIds(next)).forEach { appWidgets.deleteId(it) }
+                next
+            }
+        }
+    }
+
+    private fun appWidgetIds(layout: Layout): Set<Int> =
+        (layout.cover.items + layout.extension.items)
+            .map { it.item }
+            .filterIsInstance<AppWidgetItem>()
+            .map { it.appWidgetId }
+            .toSet()
 
     private suspend fun refreshApps() {
         _apps.value = withContext(Dispatchers.IO) { appRepository.loadApps() }.associateBy { it.key }

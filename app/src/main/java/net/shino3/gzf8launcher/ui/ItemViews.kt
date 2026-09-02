@@ -33,6 +33,7 @@ import net.shino3.gzf8launcher.model.NativeWidgetItem
 import net.shino3.gzf8launcher.theme.LocalLauncherTheme
 import net.shino3.gzf8launcher.ui.drag.DragPayload
 import net.shino3.gzf8launcher.ui.drag.dragSource
+import net.shino3.gzf8launcher.widget.AppWidgetView
 import net.shino3.gzf8launcher.widget.NativeWidgetHost
 
 /** アイテムに対する操作。種類ごとの動作はここに閉じる(docs/04)。 */
@@ -83,9 +84,10 @@ fun ItemView(
             item = item,
             modifier = modifier.dragSource(DragPayload(item, ref, null, item.widget, w, h)),
         )
-        is AppWidgetItem -> WidgetPlaceholder(
-            caption = "APPWIDGET // ${item.provider.substringBefore('/')}",
-            modifier = modifier.dragSource(DragPayload(item, ref, null, "APPWIDGET", w, h)),
+        is AppWidgetItem -> AppWidgetView(
+            item = item,
+            payload = DragPayload(item, ref, null, item.provider.substringAfterLast('.').uppercase(), w, h),
+            modifier = modifier,
         )
     }
 }

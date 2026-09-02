@@ -44,6 +44,7 @@ import net.shino3.gzf8launcher.ui.drag.DragPayload
 import net.shino3.gzf8launcher.ui.drag.DropTarget
 import net.shino3.gzf8launcher.ui.drag.LocalDragController
 import net.shino3.gzf8launcher.ui.drag.dropTarget
+import net.shino3.gzf8launcher.widget.LocalAppWidgetHost
 import net.shino3.gzf8launcher.widget.WidgetRegistry
 
 /** ホームの上に重ねるもの。同時に一つだけ。 */
@@ -89,7 +90,10 @@ fun LauncherRoot(controller: LauncherController) {
     val isCover = widthDp < 600.dp
     val swipeThreshold = with(density) { 80.dp.toPx() }
 
-    CompositionLocalProvider(LocalDragController provides drag) {
+    val gridWidthPx = (containerSize.width / (if (isCover) 1 else 2)) - with(density) { 16.dp.toPx() }
+    val cellPx = gridWidthPx / theme.columns
+
+    CompositionLocalProvider(LocalDragController provides drag, LocalAppWidgetHost provides controller.appWidgets) {
         Box(modifier = Modifier.fillMaxSize().background(theme.colors.panel)) {
             Column(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
                 Box(
@@ -117,6 +121,8 @@ fun LauncherRoot(controller: LauncherController) {
                     hidden = session != null,
                     toItem = { controller.toAppItem(it) },
                     widgets = WidgetRegistry.all.toList(),
+                    providers = controller.appWidgets.providers(),
+                    cellPx = cellPx,
                     onLaunch = { controller.launch(it); overlay = null },
                     onClose = { overlay = null },
                 )
