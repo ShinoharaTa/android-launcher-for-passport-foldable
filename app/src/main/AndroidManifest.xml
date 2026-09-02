@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- 既定ホームでない状態でもアプリ一覧を取れるように、LAUNCHER アクティビティへの可視性を宣言する -->
     <queries>
@@ -8,6 +9,11 @@
             <category android:name="android.intent.category.LAUNCHER" />
         </intent>
     </queries>
+
+    <!-- 規則つきフォルダ(最近起動、よく使う)のための使用状況アクセス。設定画面でユーザーが許可する -->
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" />
+
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application
         android:label="@string/app_name"

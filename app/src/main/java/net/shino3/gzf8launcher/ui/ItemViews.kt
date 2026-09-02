@@ -3,7 +3,6 @@ package net.shino3.gzf8launcher.ui
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -29,35 +28,65 @@ import net.shino3.gzf8launcher.model.AppKey
 import net.shino3.gzf8launcher.model.AppWidgetItem
 import net.shino3.gzf8launcher.model.FolderItem
 import net.shino3.gzf8launcher.model.Item
+import net.shino3.gzf8launcher.model.ItemRef
 import net.shino3.gzf8launcher.model.NativeWidgetItem
 import net.shino3.gzf8launcher.theme.LocalLauncherTheme
+import net.shino3.gzf8launcher.ui.drag.DragPayload
+import net.shino3.gzf8launcher.ui.drag.dragSource
+import net.shino3.gzf8launcher.widget.NativeWidgetHost
 
 /** アイテムに対する操作。種類ごとの動作はここに閉じる(docs/04)。 */
 class ItemActions(
     val onLaunch: (AppEntry) -> Unit,
-    val onOpenFolder: (FolderItem) -> Unit,
+    val onOpenFolder: (ItemRef) -> Unit,
+    /** 規則つきフォルダの中身を解決する。 */
+    val resolveFolder: (FolderItem) -> List<AppItem>,
 )
 
-/** 種類で描画を振り分ける。 */
+fun AppItem.fallbackLabel(): String = component.substringBefore('/').substringAfterLast('.')
+
+/** 種類で描画を振り分け、長押しドラッグを付ける。 */
 @Composable
 fun ItemView(
     item: Item,
+    ref: ItemRef,
     apps: Map<AppKey, AppEntry>,
     actions: ItemActions,
     modifier: Modifier = Modifier,
     showLabel: Boolean = LocalLauncherTheme.current.showLabels,
+    w: Int = 1,
+    h: Int = 1,
 ) {
     when (item) {
-        is AppItem -> AppCell(
-            entry = apps[item.key],
-            fallback = item.component.substringBefore('/').substringAfterLast('.'),
-            showLabel = showLabel,
-            modifier = modifier,
-            onClick = { entry -> actions.onLaunch(entry) },
+        is AppItem -> {
+            val entry = apps[item.key]
+            AppCell(
+                entry = entry,
+                fallback = item.fallbackLabel(),
+                showLabel = showLabel,
+                modifier = modifier.dragSource(
+                    payload = DragPayload(item, ref, entry?.icon, entry?.label ?: item.fallbackLabel(), w, h),
+                    onTap = entry?.let { e -> { actions.onLaunch(e) } },
+                ),
+            )
+        }
+        is FolderItem -> FolderCell(
+            folder = item,
+            apps = apps,
+            members = actions.resolveFolder(item),
+            modifier = modifier.dragSource(
+                payload = DragPayload(item, ref, null, item.name, w, h),
+                onTap = { actions.onOpenFolder(ref) },
+            ),
         )
-        is FolderItem -> FolderCell(item, apps, modifier) { actions.onOpenFolder(item) }
-        is NativeWidgetItem -> WidgetPlaceholder("WIDGET // ${item.widget}", modifier)
-        is AppWidgetItem -> WidgetPlaceholder("APPWIDGET // ${item.provider.substringBefore('/')}", modifier)
+        is NativeWidgetItem -> NativeWidgetHost(
+            item = item,
+            modifier = modifier.dragSource(DragPayload(item, ref, null, item.widget, w, h)),
+        )
+        is AppWidgetItem -> WidgetPlaceholder(
+            caption = "APPWIDGET // ${item.provider.substringBefore('/')}",
+            modifier = modifier.dragSource(DragPayload(item, ref, null, "APPWIDGET", w, h)),
+        )
     }
 }
 
@@ -67,13 +96,10 @@ fun AppCell(
     fallback: String,
     showLabel: Boolean,
     modifier: Modifier = Modifier,
-    onClick: (AppEntry) -> Unit,
 ) {
     val theme = LocalLauncherTheme.current
     BoxWithConstraints(
-        modifier = modifier
-            .fillMaxSize()
-            .clickable(enabled = entry != null) { entry?.let(onClick) },
+        modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.Center,
     ) {
         val iconSize = minOf(maxWidth, maxHeight) * theme.iconScale
@@ -112,8 +138,8 @@ fun AppCell(
 fun FolderCell(
     folder: FolderItem,
     apps: Map<AppKey, AppEntry>,
+    members: List<AppItem>,
     modifier: Modifier = Modifier,
-    onClick: () -> Unit,
 ) {
     val theme = LocalLauncherTheme.current
     val shape = RoundedCornerShape(14.dp)
@@ -124,7 +150,6 @@ fun FolderCell(
             .clip(shape)
             .background(theme.colors.folder)
             .border(1.dp, theme.colors.line, shape)
-            .clickable(onClick = onClick)
             .padding(6.dp),
     ) {
         val cols = theme.folderColumns
@@ -138,7 +163,7 @@ fun FolderCell(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            folder.apps.take(cols * cols).chunked(cols).forEach { row ->
+            members.take(cols * cols).chunked(cols).forEach { row ->
                 Row(modifier = Modifier.fillMaxWidth().padding(top = 2.dp)) {
                     row.forEach { app ->
                         Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
@@ -161,7 +186,7 @@ fun FolderCell(
     }
 }
 
-/** ウィジェット基盤(マイルストーン 3・5)ができるまでの仮表示。 */
+/** ウィジェット基盤ができるまでの仮表示。 */
 @Composable
 fun WidgetPlaceholder(caption: String, modifier: Modifier = Modifier) {
     val theme = LocalLauncherTheme.current

@@ -16,6 +16,10 @@ data class LauncherTheme(
     /** セル幅に対するアイコンの比率。 */
     val iconScale: Float = 0.62f,
     val folderColumns: Int = 3,
+    /** ウィジェット枠の見出し("CLOCK // LOCAL" など)を出すか。 */
+    val widgetHeaders: Boolean = true,
+    /** ウィジェット種別 ID → 使うレンダラ名。未指定は default。 */
+    val widgetVariants: Map<String, String> = emptyMap(),
     val colors: LauncherColors = LauncherColors(),
 )
 
@@ -23,6 +27,7 @@ data class LauncherColors(
     val panel: Color = Color(0xCC0B0F14),
     val surface: Color = Color(0xFF05070A),
     val folder: Color = Color(0x99182230),
+    val widget: Color = Color(0x8C0B1118),
     val line: Color = Color(0x33E6E1D6),
     val accent: Color = Color(0xFFFFB000),
     val text: Color = Color(0xFFE6E1D6),

@@ -15,7 +15,10 @@ import androidx.compose.ui.unit.dp
 import net.shino3.gzf8launcher.data.AppEntry
 import net.shino3.gzf8launcher.model.AppKey
 import net.shino3.gzf8launcher.model.Item
+import net.shino3.gzf8launcher.model.ItemRef
 import net.shino3.gzf8launcher.theme.LocalLauncherTheme
+import net.shino3.gzf8launcher.ui.drag.DropTarget
+import net.shino3.gzf8launcher.ui.drag.dropTarget
 
 /** カバーとメインで共有する 1 本のレール(docs/04)。 */
 @Composable
@@ -32,12 +35,13 @@ fun Dock(
             .padding(horizontal = 12.dp, vertical = 8.dp)
             .height(76.dp)
             .clip(RoundedCornerShape(20.dp))
-            .background(theme.colors.folder),
+            .background(theme.colors.folder)
+            .dropTarget("dock") { DropTarget.Dock(it, theme.dockSlots) },
     ) {
         repeat(theme.dockSlots) { slot ->
             Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
                 items.getOrNull(slot)?.let { item ->
-                    ItemView(item, apps, actions, showLabel = false)
+                    ItemView(item, ItemRef.Dock(slot), apps, actions, showLabel = false)
                 }
             }
         }

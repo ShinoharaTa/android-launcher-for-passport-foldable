@@ -2,7 +2,9 @@
   "version": 1,
   "cover": {
     "items": [
-      { "col": 0, "row": 0, "w": 6, "h": 2, "item": { "type": "widget", "widget": "clock" } },
+      { "col": 0, "row": 0, "w": 3, "h": 2, "item": { "type": "widget", "widget": "clock" } },
+      { "col": 3, "row": 0, "w": 3, "h": 1, "item": { "type": "widget", "widget": "status" } },
+      { "col": 0, "row": 6, "w": 6, "h": 1, "item": { "type": "widget", "widget": "metrics" } },
       { "col": 0, "row": 2, "w": 2, "h": 2, "item": { "type": "folder", "name": "MEDIA", "apps": [
         { "type": "app", "component": "com.google.android.youtube/.app.honeycomb.Shell$HomeActivity" },
         { "type": "app", "component": "com.google.android.apps.youtube.music/.activities.MusicActivity" },
@@ -32,9 +34,11 @@
   },
   "extension": {
     "items": [
-      { "col": 0, "row": 0, "w": 6, "h": 3, "item": { "type": "widget", "widget": "schedule" } },
-      { "col": 0, "row": 3, "w": 3, "h": 2, "item": { "type": "widget", "widget": "steps" } },
-      { "col": 3, "row": 3, "w": 3, "h": 2, "item": { "type": "widget", "widget": "battery" } }
+      { "col": 0, "row": 0, "w": 6, "h": 1, "item": { "type": "widget", "widget": "metrics" } },
+      { "col": 0, "row": 1, "w": 3, "h": 2, "item": { "type": "widget", "widget": "usage" } },
+      { "col": 3, "row": 1, "w": 3, "h": 1, "item": { "type": "widget", "widget": "status" } },
+      { "col": 0, "row": 3, "w": 2, "h": 2, "item": { "type": "folder", "name": "RECENT", "rule": { "type": "recent" } } },
+      { "col": 2, "row": 3, "w": 2, "h": 2, "item": { "type": "folder", "name": "FREQUENT", "rule": { "type": "frequent" } } }
     ]
   },
   "dock": [

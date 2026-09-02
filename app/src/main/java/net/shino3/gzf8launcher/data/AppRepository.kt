@@ -22,6 +22,8 @@ data class AppEntry(
     val componentName: ComponentName,
     val user: UserHandle,
     val userSerial: Long,
+    /** ApplicationInfo.category。規則つきフォルダのカテゴリ分類に使う。 */
+    val category: Int,
     val icon: ImageBitmap,
 ) {
     val key: AppKey get() = AppKey(componentName.flattenToString(), userSerial)
@@ -49,6 +51,7 @@ class AppRepository(private val context: Context) {
                             componentName = info.componentName,
                             user = user,
                             userSerial = serial,
+                            category = info.applicationInfo.category,
                             icon = info.getIcon(densityDpi).toBitmap(ICON_PX, ICON_PX).asImageBitmap(),
                         )
                     }

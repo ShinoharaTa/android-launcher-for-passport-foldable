@@ -34,8 +34,20 @@ data class AppItem(
 @SerialName("folder")
 data class FolderItem(
     val name: String,
+    /** 手動フォルダの中身。規則つきフォルダでは無視され、規則で解決した結果が表示される。 */
     val apps: List<AppItem> = emptyList(),
+    val rule: FolderRule = FolderRule.Manual,
 ) : Item
+
+/** フォルダの中身の決まり方(docs/04「フォルダとグループの区別」)。 */
+@Serializable
+sealed interface FolderRule {
+    @Serializable @SerialName("manual") data object Manual : FolderRule
+    @Serializable @SerialName("recent") data class Recent(val limit: Int = 9) : FolderRule
+    @Serializable @SerialName("frequent") data class Frequent(val limit: Int = 9, val days: Int = 7) : FolderRule
+    /** ApplicationInfo.CATEGORY_* の値。 */
+    @Serializable @SerialName("category") data class Category(val category: Int, val limit: Int = 12) : FolderRule
+}
 
 @Serializable
 @SerialName("widget")
