@@ -16,7 +16,7 @@
     "gradient": { "from": "#00000000", "to": "#66000000", "vertical": true },
     "light": false
   },
-  "grid": { "columns": 6, "dockSlots": 6, "folderColumns": 3 },
+  "grid": { "columns": 6, "dockSlots": 6, "folderColumns": 3, "shelfRows": 3 },
   "icon": { "scale": 0.62, "labels": false, "shape": "system" },
   "widgets": {
     "headers": true,
@@ -28,7 +28,8 @@
     "scanlines": true,
     "zoneHeaders": true,
     "hingeMarker": true,
-    "outlines": true
+    "outlines": true,
+    "shelfLine": true
   },
   "typography": { "ui": "mono", "mono": "mono" }
 }

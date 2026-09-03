@@ -22,13 +22,29 @@ data class PlacedItem(
 data class Zone(val items: List<PlacedItem> = emptyList())
 
 /**
+ * 一つの面(カバー、または拡張パネル)。上のウィジェット面と、下端に固定したアプリ棚の二つを持つ(#16)。
+ * 棚の段数はテーマ(grid.shelfRows)で決まり、画面の高さが変わっても棚はドックのすぐ上に留まる。
+ * どちらに何を置くかは縛らない。
+ */
+@Serializable
+data class Panel(
+    val widgets: Zone = Zone(),
+    val shelf: Zone = Zone(),
+)
+
+/**
  * 配置の全体(docs/04「配置と見た目を別のファイルに分ける」)。
  * メイン画面のアンカーゾーンは cover をそのまま参照するので、ここには持たない。
+ * version 1(面が widgets / shelf に分かれていない)は読み込み時に移す。
  */
 @Serializable
 data class Layout(
-    val version: Int = 1,
-    val cover: Zone = Zone(),
-    val extension: Zone = Zone(),
+    val version: Int = CURRENT_VERSION,
+    val cover: Panel = Panel(),
+    val extension: Panel = Panel(),
     val dock: List<Item> = emptyList(),
-)
+) {
+    companion object {
+        const val CURRENT_VERSION = 2
+    }
+}

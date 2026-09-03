@@ -16,7 +16,7 @@
     "gradient": null,
     "light": true
   },
-  "grid": { "columns": 6, "dockSlots": 6, "folderColumns": 3 },
+  "grid": { "columns": 6, "dockSlots": 6, "folderColumns": 3, "shelfRows": 3 },
   "icon": { "scale": 0.56, "labels": true, "shape": "circle" },
   "widgets": {
     "headers": false,
@@ -28,7 +28,8 @@
     "scanlines": false,
     "zoneHeaders": false,
     "hingeMarker": false,
-    "outlines": false
+    "outlines": false,
+    "shelfLine": false
   },
   "typography": { "ui": "serif", "mono": "sans" }
 }

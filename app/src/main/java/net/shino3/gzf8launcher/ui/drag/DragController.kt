@@ -45,14 +45,16 @@ class DragSession(val payload: DragPayload, val start: Offset) {
 
 /** ドロップ先。root 座標の矩形で判定する。 */
 sealed class DropTarget(val bounds: Rect, val priority: Int) {
-    class Grid(val zone: ZoneId, bounds: Rect, val columns: Int) : DropTarget(bounds, 1) {
+    /** rows は段数が固定のゾーン(アプリ棚)で渡す。null なら下方向に制限しない。 */
+    class Grid(val zone: ZoneId, bounds: Rect, val columns: Int, val rows: Int? = null) : DropTarget(bounds, 1) {
         val cellPx: Float get() = bounds.width / columns
 
         /** ポインタのセルを w×h の中央に寄せた左上セル。 */
         fun cellFor(pos: Offset, w: Int, h: Int): Pair<Int, Int> {
             val col = ((pos.x - bounds.left) / cellPx).toInt() - (w - 1) / 2
             val row = ((pos.y - bounds.top) / cellPx).toInt() - (h - 1) / 2
-            return col.coerceIn(0, maxOf(0, columns - w)) to maxOf(0, row)
+            val maxRow = rows?.let { maxOf(0, it - h) } ?: Int.MAX_VALUE
+            return col.coerceIn(0, maxOf(0, columns - w)) to row.coerceIn(0, maxRow)
         }
     }
 

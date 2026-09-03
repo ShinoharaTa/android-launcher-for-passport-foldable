@@ -50,7 +50,13 @@ data class SurfaceSpec(
 data class Gradient(val from: String, val to: String, val vertical: Boolean = true)
 
 @Serializable
-data class GridSpec(val columns: Int = 6, val dockSlots: Int = 6, val folderColumns: Int = 3)
+data class GridSpec(
+    val columns: Int = 6,
+    val dockSlots: Int = 6,
+    val folderColumns: Int = 3,
+    /** 下端に固定するアプリ棚の段数(#16)。 */
+    val shelfRows: Int = 3,
+)
 
 @Serializable
 data class IconSpec(
@@ -86,6 +92,8 @@ data class DecorSpec(
     val hingeMarker: Boolean = true,
     /** 枠線を描くか。ミニマル寄りのテーマでは消せる。 */
     val outlines: Boolean = true,
+    /** ウィジェット面とアプリ棚の境界線。 */
+    val shelfLine: Boolean = true,
 )
 
 /** 書体。"mono" / "sans" / "serif" / "default" のいずれか。 */

@@ -22,10 +22,12 @@ fun HomeGrid(
     zoneId: ZoneId,
     columns: Int,
     modifier: Modifier = Modifier,
+    /** 段数が固定のゾーン(アプリ棚)で渡す。ドロップ先の下限になる。 */
+    rows: Int? = null,
     cell: @Composable (index: Int, placed: PlacedItem) -> Unit,
 ) {
     Layout(
-        modifier = modifier.dropTarget("grid:$zoneId") { DropTarget.Grid(zoneId, it, columns) },
+        modifier = modifier.dropTarget("grid:$zoneId") { DropTarget.Grid(zoneId, it, columns, rows) },
         content = { zone.items.forEachIndexed { index, placed -> Box { cell(index, placed) } } },
     ) { measurables, constraints ->
         val cellPx = constraints.maxWidth / columns

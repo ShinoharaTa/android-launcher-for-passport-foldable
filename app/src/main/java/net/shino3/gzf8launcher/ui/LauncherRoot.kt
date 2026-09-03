@@ -14,6 +14,7 @@ import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -95,7 +96,7 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
         DragController(
             slopPx = with(density) { 12.dp.toPx() },
             onDrop = { session, target ->
-                controller.drop(session, target, theme.columns, theme.dockSlots)
+                controller.drop(session, target, theme.columns, theme.dockSlots, theme.shelfRows)
                 overlay = null
                 sheet.close()
             },
@@ -229,7 +230,7 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
                     hidden = session != null,
                     onAppInfo = { controller.openAppDetails(it) },
                     onOpenFolder = { overlay = Overlay.Folder(it) },
-                    onResize = { ref, dw, dh -> controller.resize(ref, dw, dh, theme.columns) },
+                    onResize = { ref, dw, dh -> controller.resize(ref, dw, dh, theme.columns, theme.shelfRows) },
                     onRemove = { controller.remove(it) },
                     onLaunchShortcut = { controller.launchShortcut(it) },
                     onDismiss = { overlay = null },
@@ -312,7 +313,7 @@ private fun RemoveBar() {
     }
 }
 
-/** カバー画面(閉)。カバー面のゾーンをそのまま描く。 */
+/** カバー画面(閉)。上にウィジェット面、下端にアプリ棚(#16)。 */
 @Composable
 fun CoverSurface(
     layout: Layout,
@@ -321,13 +322,16 @@ fun CoverSurface(
     modifier: Modifier = Modifier,
 ) {
     val theme = LocalLauncherTheme.current
-    HomeGrid(layout.cover, ZoneId.COVER, theme.columns, modifier.fillMaxSize().padding(horizontal = 8.dp, vertical = 8.dp)) { index, placed ->
-        ItemView(placed.item, ItemRef.Grid(ZoneId.COVER, index), apps, actions, w = placed.w, h = placed.h)
+    Column(modifier = modifier.fillMaxSize()) {
+        ZoneGrid(layout.cover.widgets, ZoneId.COVER_WIDGETS, apps, actions, Modifier.weight(1f))
+        ShelfLine()
+        ZoneGrid(layout.cover.shelf, ZoneId.COVER_SHELF, apps, actions, Modifier.shelfHeight(theme.columns, theme.shelfRows), rows = theme.shelfRows)
     }
 }
 
 /**
  * メイン画面(開)。右をアンカー(カバー面の参照)、左を拡張パネルにする(docs/03)。
+ * アプリ棚は左右に広がり、左の棚は開いたときだけ使える(#16)。
  * アンカーの左右切り替えは #3 で扱う。
  */
 @Composable
@@ -338,23 +342,66 @@ fun MainSurface(
     modifier: Modifier = Modifier,
 ) {
     val theme = LocalLauncherTheme.current
-    Row(modifier = modifier.fillMaxSize()) {
-        Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
-            ZoneHeader("EXT.PANEL // UNFOLD+")
-            HomeGrid(layout.extension, ZoneId.EXTENSION, theme.columns, Modifier.weight(1f).padding(horizontal = 8.dp)) { index, placed ->
-                ItemView(placed.item, ItemRef.Grid(ZoneId.EXTENSION, index), apps, actions, w = placed.w, h = placed.h)
+    Column(modifier = modifier.fillMaxSize()) {
+        Row(modifier = Modifier.weight(1f)) {
+            Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                ZoneHeader("EXT.PANEL // UNFOLD+")
+                ZoneGrid(layout.extension.widgets, ZoneId.EXTENSION_WIDGETS, apps, actions, Modifier.weight(1f))
+            }
+            HingeMarker()
+            Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                ZoneHeader("PRIMARY // SYNC:COVER")
+                ZoneGrid(layout.cover.widgets, ZoneId.COVER_WIDGETS, apps, actions, Modifier.weight(1f))
             }
         }
-        if (theme.decor.hingeMarker) {
-            Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(theme.colors.line))
-        }
-        Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
-            ZoneHeader("PRIMARY // SYNC:COVER")
-            HomeGrid(layout.cover, ZoneId.COVER, theme.columns, Modifier.weight(1f).padding(horizontal = 8.dp)) { index, placed ->
-                ItemView(placed.item, ItemRef.Grid(ZoneId.COVER, index), apps, actions, w = placed.w, h = placed.h)
-            }
+        ShelfLine()
+        // 棚の高さは行そのものに持たせる。子に持たせるとヒンジ線の fillMaxHeight が残り全部を取り、上の面が 0 になる
+        Row(modifier = Modifier.shelfHeight(theme.columns * 2, theme.shelfRows)) {
+            ZoneGrid(layout.extension.shelf, ZoneId.EXTENSION_SHELF, apps, actions, Modifier.weight(1f).fillMaxHeight(), rows = theme.shelfRows)
+            HingeMarker()
+            ZoneGrid(layout.cover.shelf, ZoneId.COVER_SHELF, apps, actions, Modifier.weight(1f).fillMaxHeight(), rows = theme.shelfRows)
         }
     }
+}
+
+@Composable
+private fun ZoneGrid(
+    zone: net.shino3.gzf8launcher.model.Zone,
+    zoneId: ZoneId,
+    apps: Map<AppKey, AppEntry>,
+    actions: ItemActions,
+    modifier: Modifier,
+    rows: Int? = null,
+) {
+    val theme = LocalLauncherTheme.current
+    HomeGrid(zone, zoneId, theme.columns, modifier.padding(horizontal = 8.dp, vertical = 4.dp), rows = rows) { index, placed ->
+        ItemView(placed.item, ItemRef.Grid(zoneId, index), apps, actions, w = placed.w, h = placed.h)
+    }
+}
+
+/** 棚の高さは「列数 : 段数」の比で決まる。幅からセル寸法が決まるので、段数ぶんだけ縦に取る。 */
+private fun Modifier.shelfHeight(columns: Int, rows: Int): Modifier =
+    fillMaxWidth().aspectRatio(columns.toFloat() / rows.coerceAtLeast(1))
+
+/** ウィジェット面とアプリ棚の境界。テーマで消せる。 */
+@Composable
+private fun ShelfLine() {
+    val theme = LocalLauncherTheme.current
+    if (!theme.decor.shelfLine) return
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .height(1.dp)
+            .background(theme.colors.line),
+    )
+}
+
+@Composable
+private fun HingeMarker() {
+    val theme = LocalLauncherTheme.current
+    if (!theme.decor.hingeMarker) return
+    Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(theme.colors.line))
 }
 
 @Composable
