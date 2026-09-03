@@ -1,0 +1,34 @@
+{
+  "id": "amber-terminal",
+  "name": "AMBER TERMINAL",
+  "palette": {
+    "panel": "#CC080B10",
+    "surface": "#F205070A",
+    "module": "#8C0B1118",
+    "dock": "#99121A24",
+    "line": "#3DFFB000",
+    "accent": "#FFFFB000",
+    "text": "#FFE6E1D6",
+    "textDim": "#FF7F8794"
+  },
+  "surface": {
+    "showWallpaper": true,
+    "gradient": { "from": "#00000000", "to": "#66000000", "vertical": true },
+    "light": false
+  },
+  "grid": { "columns": 6, "dockSlots": 6, "folderColumns": 3 },
+  "icon": { "scale": 0.62, "labels": false, "shape": "system" },
+  "widgets": {
+    "headers": true,
+    "radius": 10,
+    "variants": {}
+  },
+  "decor": {
+    "cornerBrackets": true,
+    "scanlines": true,
+    "zoneHeaders": true,
+    "hingeMarker": true,
+    "outlines": true
+  },
+  "typography": { "ui": "mono", "mono": "mono" }
+}
