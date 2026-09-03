@@ -58,7 +58,7 @@ fun ItemMenu(
             )
             when (val item = payload.item) {
                 is AppItem -> MenuRow("APP INFO") { onAppInfo(item); onDismiss() }
-                is FolderItem -> if (ref != null) MenuRow("OPEN / RENAME") { onOpenFolder(ref); onDismiss() }
+                is FolderItem -> if (ref != null) MenuRow("OPEN / RENAME") { onOpenFolder(ref) }
                 is NativeWidgetItem, is AppWidgetItem -> if (ref != null) {
                     val p = LayoutEditor.placementOf(layout, ref)
                     Text(
