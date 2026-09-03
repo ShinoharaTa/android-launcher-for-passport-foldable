@@ -15,6 +15,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,6 +33,8 @@ import net.shino3.gzf8launcher.model.FolderItem
 import net.shino3.gzf8launcher.model.Item
 import net.shino3.gzf8launcher.model.ItemRef
 import net.shino3.gzf8launcher.model.NativeWidgetItem
+import net.shino3.gzf8launcher.model.ShortcutItem
+import net.shino3.gzf8launcher.data.ShortcutEntry
 import net.shino3.gzf8launcher.theme.IconShape
 import net.shino3.gzf8launcher.theme.LocalLauncherTheme
 import net.shino3.gzf8launcher.ui.drag.DragPayload
@@ -44,6 +48,9 @@ class ItemActions(
     val onOpenFolder: (ItemRef) -> Unit,
     /** 規則つきフォルダの中身を解決する。 */
     val resolveFolder: (FolderItem) -> List<AppItem>,
+    /** 固定したショートカットの表示名とアイコンを引き直す。 */
+    val resolveShortcut: suspend (ShortcutItem) -> ShortcutEntry? = { null },
+    val onLaunchShortcut: (ShortcutItem) -> Unit = {},
 )
 
 fun AppItem.fallbackLabel(): String = component.substringBefore('/').substringAfterLast('.')
@@ -94,11 +101,82 @@ fun ItemView(
             item = item,
             modifier = modifier.dragSource(DragPayload(item, ref, null, item.widget, w, h)),
         )
+        is ShortcutItem -> ShortcutCell(
+            item = item,
+            showLabel = showLabel,
+            actions = actions,
+            modifier = modifier,
+            ref = ref,
+            w = w,
+            h = h,
+        )
         is AppWidgetItem -> AppWidgetView(
             item = item,
             payload = DragPayload(item, ref, null, item.provider.substringAfterLast('.').uppercase(), w, h),
             modifier = modifier,
         )
+    }
+}
+
+/** ホームに固定したショートカット。表示名とアイコンはアプリ側から引き直す。 */
+@Composable
+fun ShortcutCell(
+    item: ShortcutItem,
+    showLabel: Boolean,
+    actions: ItemActions,
+    ref: ItemRef,
+    modifier: Modifier = Modifier,
+    w: Int = 1,
+    h: Int = 1,
+) {
+    val entry by produceState<ShortcutEntry?>(initialValue = null, item) {
+        value = actions.resolveShortcut(item)
+    }
+    val theme = LocalLauncherTheme.current
+    val shape = iconShape()
+    val label = entry?.label ?: item.label.ifEmpty { item.shortcutId }
+    BoxWithConstraints(
+        modifier = modifier
+            .fillMaxSize()
+            .dragSource(
+                payload = DragPayload(item, ref, entry?.icon, label, w, h),
+                onTap = { actions.onLaunchShortcut(item) },
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        val iconSize = minOf(maxWidth, maxHeight) * theme.iconScale
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            val icon = entry?.icon
+            if (icon != null) {
+                Image(
+                    bitmap = icon,
+                    contentDescription = label,
+                    modifier = Modifier.size(iconSize).then(if (shape != null) Modifier.clip(shape) else Modifier),
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(iconSize)
+                        .clip(shape ?: RoundedCornerShape(22))
+                        .border(1.dp, theme.colors.line, shape ?: RoundedCornerShape(22)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text("→", color = theme.colors.textDim, fontFamily = theme.monoFont, fontSize = 14.sp)
+                }
+            }
+            if (showLabel) {
+                Text(
+                    text = label,
+                    color = theme.colors.text,
+                    fontFamily = theme.uiFont,
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 2.dp, start = 2.dp, end = 2.dp),
+                )
+            }
+        }
     }
 }
 
