@@ -17,8 +17,6 @@ data class LauncherTheme(
     val columns: Int = 6,
     val dockSlots: Int = 6,
     val folderColumns: Int = 3,
-    /** 下端に固定するアプリ棚の段数。 */
-    val shelfRows: Int = 3,
     val showLabels: Boolean = false,
     val iconScale: Float = 0.62f,
     val iconShape: IconShape = IconShape.SYSTEM,
@@ -75,7 +73,6 @@ fun ThemeSpec.toTheme(): LauncherTheme = LauncherTheme(
     columns = grid.columns,
     dockSlots = grid.dockSlots,
     folderColumns = grid.folderColumns,
-    shelfRows = grid.shelfRows,
     showLabels = icon.labels,
     iconScale = icon.scale,
     iconShape = icon.shape,

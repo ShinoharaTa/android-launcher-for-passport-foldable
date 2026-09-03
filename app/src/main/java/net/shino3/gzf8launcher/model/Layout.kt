@@ -19,32 +19,27 @@ data class PlacedItem(
 }
 
 @Serializable
-data class Zone(val items: List<PlacedItem> = emptyList())
-
-/**
- * 一つの面(カバー、または拡張パネル)。上のウィジェット面と、下端に固定したアプリ棚の二つを持つ(#16)。
- * 棚の段数はテーマ(grid.shelfRows)で決まり、画面の高さが変わっても棚はドックのすぐ上に留まる。
- * どちらに何を置くかは縛らない。
- */
-@Serializable
-data class Panel(
-    val widgets: Zone = Zone(),
-    val shelf: Zone = Zone(),
-)
+data class Zone(val items: List<PlacedItem> = emptyList()) {
+    /** 置かれているアイテムが占める段数。空なら 0。 */
+    val occupiedRows: Int get() = items.maxOfOrNull { it.row + it.h } ?: 0
+}
 
 /**
  * 配置の全体(docs/04「配置と見た目を別のファイルに分ける」)。
- * メイン画面のアンカーゾーンは cover をそのまま参照するので、ここには持たない。
- * version 1(面が widgets / shelf に分かれていない)は読み込み時に移す。
+ * ホームは 2 ページで、どちらも縦にいくらでも伸びる(#19)。
+ * カバーではページを横にめくり、開くとそのページが左右に並ぶ。
+ * version 1 と 2 は読み込み時に移す。
  */
 @Serializable
 data class Layout(
     val version: Int = CURRENT_VERSION,
-    val cover: Panel = Panel(),
-    val extension: Panel = Panel(),
+    /** ページ 1。ウィジェットと大型フォルダの面。 */
+    val widgets: Zone = Zone(),
+    /** ページ 2。アプリとフォルダの面。HOME の着地。 */
+    val apps: Zone = Zone(),
     val dock: List<Item> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_VERSION = 2
+        const val CURRENT_VERSION = 3
     }
 }

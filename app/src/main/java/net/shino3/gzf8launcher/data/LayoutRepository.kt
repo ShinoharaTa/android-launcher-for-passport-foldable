@@ -7,7 +7,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
@@ -43,19 +46,48 @@ class LayoutRepository(private val context: Context) {
 
     fun export(): String = json.encodeToString(_layout.value)
 
-    /** version 1(面が widgets / shelf に分かれていない)は cover / extension をそのままウィジェット面に移す。 */
+    /**
+     * 古い版を現在の形に移す。
+     * version 1: cover / extension が 1 枚ずつ → cover をウィジェット面、extension をその下に足す。
+     * version 2: 面ごとに widgets / shelf → widgets 同士、shelf 同士を上下に連ねる(cover が上)。
+     */
     private fun parse(text: String): Layout {
         val root = json.parseToJsonElement(text).jsonObject
         val version = root["version"]?.jsonPrimitive?.intOrNull ?: 1
-        val element = if (version >= Layout.CURRENT_VERSION) root else migrateV1(root)
+        val element = when {
+            version >= Layout.CURRENT_VERSION -> root
+            version == 2 -> migrateV2(root)
+            else -> migrateV1(root)
+        }
         return json.decodeFromJsonElement(Layout.serializer(), element)
     }
 
     private fun migrateV1(root: JsonObject): JsonObject = buildJsonObject {
         put("version", Layout.CURRENT_VERSION)
-        put("cover", buildJsonObject { root["cover"]?.let { put("widgets", it) } })
-        put("extension", buildJsonObject { root["extension"]?.let { put("widgets", it) } })
+        put("widgets", stack(root["cover"]?.jsonObject, root["extension"]?.jsonObject))
+        put("apps", buildJsonObject { put("items", JsonArray(emptyList())) })
         root["dock"]?.let { put("dock", it) }
+    }
+
+    private fun migrateV2(root: JsonObject): JsonObject = buildJsonObject {
+        val cover = root["cover"]?.jsonObject
+        val extension = root["extension"]?.jsonObject
+        put("version", Layout.CURRENT_VERSION)
+        put("widgets", stack(cover?.get("widgets")?.jsonObject, extension?.get("widgets")?.jsonObject))
+        put("apps", stack(cover?.get("shelf")?.jsonObject, extension?.get("shelf")?.jsonObject))
+        root["dock"]?.let { put("dock", it) }
+    }
+
+    /** 二つのゾーンを縦に連ねる。下に足す側の row を、上側が占める段数ぶんずらす。 */
+    private fun stack(upper: JsonObject?, lower: JsonObject?): JsonObject {
+        val upperItems = upper?.get("items")?.jsonArray?.map { it.jsonObject }.orEmpty()
+        val offset = upperItems.maxOfOrNull { (it["row"]?.jsonPrimitive?.intOrNull ?: 0) + (it["h"]?.jsonPrimitive?.intOrNull ?: 1) } ?: 0
+        val lowerItems = lower?.get("items")?.jsonArray?.map { element ->
+            val obj = element.jsonObject
+            val row = obj["row"]?.jsonPrimitive?.intOrNull ?: 0
+            JsonObject(obj + ("row" to JsonPrimitive(row + offset)))
+        }.orEmpty()
+        return buildJsonObject { put("items", JsonArray(upperItems + lowerItems)) }
     }
 
     private fun readPreset(): String =

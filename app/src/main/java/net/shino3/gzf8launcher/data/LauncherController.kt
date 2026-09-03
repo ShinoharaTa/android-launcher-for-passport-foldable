@@ -163,7 +163,7 @@ class LauncherController(private val context: Context, private val scope: Corout
 
     // ---- 編集 ----
 
-    fun drop(session: DragSession, target: DropTarget?, columns: Int, dockSlots: Int, shelfRows: Int) {
+    fun drop(session: DragSession, target: DropTarget?, columns: Int, dockSlots: Int) {
         if (target == null) return
         val p = session.payload
         val item = p.item
@@ -201,14 +201,13 @@ class LauncherController(private val context: Context, private val scope: Corout
         LayoutEditor.replace(layout, ref, folder.copy(rule = rule))
     }
 
-    fun resize(ref: ItemRef, dw: Int, dh: Int, columns: Int, shelfRows: Int) = edit { layout ->
+    fun resize(ref: ItemRef, dw: Int, dh: Int, columns: Int) = edit { layout ->
         val p = LayoutEditor.placementOf(layout, ref) ?: return@edit null
         val w = p.w + dw
         val h = p.h + dh
         val spec = (LayoutEditor.itemAt(layout, ref) as? NativeWidgetItem)?.let { WidgetRegistry.get(it.widget)?.spec }
         if (spec != null && (w !in spec.minW..spec.maxW || h !in spec.minH..spec.maxH)) return@edit null
-        val rows = (ref as? ItemRef.Grid)?.zone?.takeIf { it.isShelf }?.let { shelfRows }
-        LayoutEditor.resize(layout, ref, w, h, columns, rows)
+        LayoutEditor.resize(layout, ref, w, h, columns)
     }
 
     // ---- AppWidget のバインド ----
