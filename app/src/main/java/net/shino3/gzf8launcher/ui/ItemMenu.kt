@@ -14,7 +14,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import net.shino3.gzf8launcher.model.AppItem
@@ -39,7 +38,7 @@ fun ItemMenu(
     onDismiss: () -> Unit,
 ) {
     val theme = LocalLauncherTheme.current
-    val shape = RoundedCornerShape(14.dp)
+    val shape = RoundedCornerShape(theme.moduleRadius + 4.dp)
     val ref = payload.source
     Overlay(hidden = false, onDismiss = onDismiss) {
         Column(
@@ -47,13 +46,13 @@ fun ItemMenu(
                 .width(260.dp)
                 .clip(shape)
                 .background(theme.colors.surface)
-                .border(1.dp, theme.colors.line, shape)
+                .border(1.dp, theme.outline, shape)
                 .padding(vertical = 8.dp),
         ) {
             Text(
                 text = payload.label.uppercase(),
                 color = theme.colors.accent,
-                fontFamily = FontFamily.Monospace,
+                fontFamily = theme.monoFont,
                 fontSize = 11.sp,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
             )
@@ -65,7 +64,7 @@ fun ItemMenu(
                     Text(
                         text = "SIZE ${p?.w ?: payload.w} x ${p?.h ?: payload.h}",
                         color = theme.colors.textDim,
-                        fontFamily = FontFamily.Monospace,
+                        fontFamily = theme.monoFont,
                         fontSize = 11.sp,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                     )
@@ -74,7 +73,7 @@ fun ItemMenu(
                             Text(
                                 text = label,
                                 color = theme.colors.text,
-                                fontFamily = FontFamily.Monospace,
+                                fontFamily = theme.monoFont,
                                 fontSize = 12.sp,
                                 modifier = Modifier
                                     .weight(1f)
@@ -100,11 +99,39 @@ private fun MenuRow(label: String, accent: Boolean = false, onClick: () -> Unit)
     Text(
         text = label,
         color = if (accent) theme.colors.accent else theme.colors.text,
-        fontFamily = FontFamily.Monospace,
+        fontFamily = theme.monoFont,
         fontSize = 13.sp,
         modifier = Modifier
             .fillMaxWidth()
             .pointerInput(label) { detectTapGestures { onClick() } }
             .padding(horizontal = 16.dp, vertical = 12.dp),
     )
+}
+
+/** ホームの空き領域を長押ししたときのメニュー。設定への入口(2026-09-03 決定)。 */
+@Composable
+fun HomeMenu(onOpenSettings: () -> Unit, onOpenDrawer: () -> Unit, onDismiss: () -> Unit) {
+    val theme = LocalLauncherTheme.current
+    val shape = RoundedCornerShape(theme.moduleRadius + 4.dp)
+    Overlay(hidden = false, onDismiss = onDismiss) {
+        Column(
+            modifier = Modifier
+                .width(260.dp)
+                .clip(shape)
+                .background(theme.colors.surface)
+                .border(1.dp, theme.outline, shape)
+                .padding(vertical = 8.dp),
+        ) {
+            Text(
+                text = "HOME",
+                color = theme.colors.accent,
+                fontFamily = theme.monoFont,
+                fontSize = 11.sp,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+            )
+            // どちらも別の重ね描きに移る。ここで閉じると移った先まで消えてしまう
+            MenuRow("ADD ITEM") { onOpenDrawer() }
+            MenuRow("SETTINGS") { onOpenSettings() }
+        }
+    }
 }

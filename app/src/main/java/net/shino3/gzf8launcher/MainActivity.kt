@@ -9,11 +9,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.lifecycle.lifecycleScope
 import net.shino3.gzf8launcher.data.LauncherController
-import net.shino3.gzf8launcher.theme.LauncherTheme
-import net.shino3.gzf8launcher.theme.LocalLauncherTheme
 import net.shino3.gzf8launcher.ui.LauncherRoot
 import net.shino3.gzf8launcher.widget.BuiltInWidgets
 
@@ -32,9 +29,7 @@ class MainActivity : ComponentActivity(), LauncherController.AppWidgetBindHost {
         controller.bindHost = this
         controller.start()
         setContent {
-            CompositionLocalProvider(LocalLauncherTheme provides LauncherTheme()) {
-                LauncherRoot(controller)
-            }
+            LauncherRoot(controller)
         }
     }
 

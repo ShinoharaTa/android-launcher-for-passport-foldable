@@ -1,0 +1,34 @@
+{
+  "id": "paper-white",
+  "name": "PAPER WHITE",
+  "palette": {
+    "panel": "#FFF6F4EF",
+    "surface": "#FFFCFBF8",
+    "module": "#FFFFFFFF",
+    "dock": "#FFFFFFFF",
+    "line": "#1A1B1A17",
+    "accent": "#FF1B1A17",
+    "text": "#FF1B1A17",
+    "textDim": "#FF7A756B"
+  },
+  "surface": {
+    "showWallpaper": false,
+    "gradient": null,
+    "light": true
+  },
+  "grid": { "columns": 6, "dockSlots": 6, "folderColumns": 3 },
+  "icon": { "scale": 0.56, "labels": true, "shape": "circle" },
+  "widgets": {
+    "headers": false,
+    "radius": 20,
+    "variants": { "clock": "plain", "status": "plain", "usage": "plain" }
+  },
+  "decor": {
+    "cornerBrackets": false,
+    "scanlines": false,
+    "zoneHeaders": false,
+    "hingeMarker": false,
+    "outlines": false
+  },
+  "typography": { "ui": "serif", "mono": "sans" }
+}

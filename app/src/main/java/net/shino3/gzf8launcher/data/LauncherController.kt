@@ -17,6 +17,9 @@ import net.shino3.gzf8launcher.model.AppItem
 import net.shino3.gzf8launcher.model.AppKey
 import net.shino3.gzf8launcher.model.AppWidgetItem
 import net.shino3.gzf8launcher.model.ZoneId
+import net.shino3.gzf8launcher.theme.LauncherTheme
+import net.shino3.gzf8launcher.theme.ThemeRepository
+import net.shino3.gzf8launcher.theme.ThemeSpec
 import net.shino3.gzf8launcher.widget.AppWidgetHostManager
 import net.shino3.gzf8launcher.model.FolderItem
 import net.shino3.gzf8launcher.model.FolderRule
@@ -33,6 +36,7 @@ class LauncherController(private val context: Context, private val scope: Corout
     private val appRepository = AppRepository(context)
     private val layoutRepository = LayoutRepository(context)
     private val usageRepository = UsageRepository(context)
+    private val themeRepository = ThemeRepository(context)
     val appWidgets = AppWidgetHostManager(context)
 
     /** バインド許可と設定アクティビティはアクティビティの結果が要るので、その部分だけ外に出す。 */
@@ -64,12 +68,22 @@ class LauncherController(private val context: Context, private val scope: Corout
     private val _usagePermitted = MutableStateFlow(false)
     val usagePermitted: StateFlow<Boolean> = _usagePermitted
 
+    val theme: StateFlow<LauncherTheme> = themeRepository.theme
+
+    private val _themes = MutableStateFlow<List<ThemeSpec>>(emptyList())
+    /** 設定画面に出す同梱テーマ。 */
+    val themes: StateFlow<List<ThemeSpec>> = _themes
+
     private val _homeSignal = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     /** HOME キーで再表示されたとき。重ね描きを閉じる合図。 */
     val homeSignal: SharedFlow<Unit> = _homeSignal
 
     fun start() {
         scope.launch { layoutRepository.load() }
+        scope.launch {
+            themeRepository.load()
+            _themes.value = themeRepository.bundled()
+        }
         scope.launch {
             refreshApps()
             appRepository.changes().collect { refreshApps() }
@@ -96,6 +110,10 @@ class LauncherController(private val context: Context, private val scope: Corout
         val entry = _apps.value[item.key] ?: return
         context.getSystemService(LauncherApps::class.java)
             .startAppDetailsActivity(entry.componentName, entry.user, null, null)
+    }
+
+    fun applyTheme(spec: ThemeSpec) {
+        scope.launch { themeRepository.apply(spec) }
     }
 
     fun requestUsagePermission() {
