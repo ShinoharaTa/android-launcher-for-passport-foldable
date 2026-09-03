@@ -19,16 +19,27 @@ data class PlacedItem(
 }
 
 @Serializable
-data class Zone(val items: List<PlacedItem> = emptyList())
+data class Zone(val items: List<PlacedItem> = emptyList()) {
+    /** 置かれているアイテムが占める段数。空なら 0。 */
+    val occupiedRows: Int get() = items.maxOfOrNull { it.row + it.h } ?: 0
+}
 
 /**
  * 配置の全体(docs/04「配置と見た目を別のファイルに分ける」)。
- * メイン画面のアンカーゾーンは cover をそのまま参照するので、ここには持たない。
+ * ホームは 2 ページで、どちらも縦にいくらでも伸びる(#19)。
+ * カバーではページを横にめくり、開くとそのページが左右に並ぶ。
+ * version 1 と 2 は読み込み時に移す。
  */
 @Serializable
 data class Layout(
-    val version: Int = 1,
-    val cover: Zone = Zone(),
-    val extension: Zone = Zone(),
+    val version: Int = CURRENT_VERSION,
+    /** ページ 1。ウィジェットと大型フォルダの面。 */
+    val widgets: Zone = Zone(),
+    /** ページ 2。アプリとフォルダの面。HOME の着地。 */
+    val apps: Zone = Zone(),
     val dock: List<Item> = emptyList(),
-)
+) {
+    companion object {
+        const val CURRENT_VERSION = 3
+    }
+}

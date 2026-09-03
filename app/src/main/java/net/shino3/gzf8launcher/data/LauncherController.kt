@@ -17,6 +17,7 @@ import net.shino3.gzf8launcher.model.AppItem
 import net.shino3.gzf8launcher.model.AppKey
 import net.shino3.gzf8launcher.model.AppWidgetItem
 import net.shino3.gzf8launcher.model.ZoneId
+import net.shino3.gzf8launcher.model.allZones
 import net.shino3.gzf8launcher.theme.LauncherTheme
 import net.shino3.gzf8launcher.theme.ThemeRepository
 import net.shino3.gzf8launcher.theme.ThemeSpec
@@ -58,6 +59,7 @@ class LauncherController(private val context: Context, private val scope: Corout
         val w: Int,
         val h: Int,
         val columns: Int,
+        val rows: Int?,
     )
 
     private var pendingAppWidget: PendingAppWidget? = null
@@ -173,7 +175,7 @@ class LauncherController(private val context: Context, private val scope: Corout
             // ドロワーから来た新しい AppWidget。バインドしてから置く
             if (target is DropTarget.Grid) {
                 val (col, row) = target.cellFor(session.position, p.w, p.h)
-                beginAppWidgetPlacement(item, target.zone, col, row, p.w, p.h, target.columns)
+                beginAppWidgetPlacement(item, target.zone, col, row, p.w, p.h, target.columns, target.rows)
             }
             return
         }
@@ -183,7 +185,7 @@ class LauncherController(private val context: Context, private val scope: Corout
                 is DropTarget.Remove -> if (p.source == null) null else base
                 is DropTarget.Grid -> {
                     val (col, row) = target.cellFor(session.position, p.w, p.h)
-                    LayoutEditor.dropOnGrid(base, target.zone, col, row, p.item, p.w, p.h, target.columns)
+                    LayoutEditor.dropOnGrid(base, target.zone, col, row, p.item, p.w, p.h, target.columns, target.rows)
                 }
                 is DropTarget.Dock -> LayoutEditor.dropOnDock(base, target.slotAt(session.position), p.item, dockSlots)
             }
@@ -210,11 +212,11 @@ class LauncherController(private val context: Context, private val scope: Corout
 
     // ---- AppWidget のバインド ----
 
-    private fun beginAppWidgetPlacement(item: AppWidgetItem, zone: ZoneId, col: Int, row: Int, w: Int, h: Int, columns: Int) {
+    private fun beginAppWidgetPlacement(item: AppWidgetItem, zone: ZoneId, col: Int, row: Int, w: Int, h: Int, columns: Int, rows: Int?) {
         val provider = ComponentName.unflattenFromString(item.provider) ?: return
         val info = appWidgets.providerInfo(provider) ?: return
         val id = appWidgets.allocateId()
-        pendingAppWidget = PendingAppWidget(id, info, zone, col, row, w, h, columns)
+        pendingAppWidget = PendingAppWidget(id, info, zone, col, row, w, h, columns, rows)
         if (appWidgets.bindIfAllowed(id, provider, info.profile)) {
             onBindResult(true)
         } else {
@@ -243,7 +245,7 @@ class LauncherController(private val context: Context, private val scope: Corout
             return
         }
         val item = AppWidgetItem(pending.info.provider.flattenToString(), pending.appWidgetId)
-        val next = LayoutEditor.dropOnGrid(layout.value, pending.zone, pending.col, pending.row, item, pending.w, pending.h, pending.columns)
+        val next = LayoutEditor.dropOnGrid(layout.value, pending.zone, pending.col, pending.row, item, pending.w, pending.h, pending.columns, pending.rows)
         if (next == null) {
             appWidgets.deleteId(pending.appWidgetId)
             return
@@ -268,7 +270,8 @@ class LauncherController(private val context: Context, private val scope: Corout
     }
 
     private fun appWidgetIds(layout: Layout): Set<Int> =
-        (layout.cover.items + layout.extension.items)
+        layout.allZones()
+            .flatMap { it.items }
             .map { it.item }
             .filterIsInstance<AppWidgetItem>()
             .map { it.appWidgetId }
