@@ -24,14 +24,16 @@ fun HomeGrid(
     columns: Int,
     modifier: Modifier = Modifier,
     minRows: Int = 0,
+    /** 段数を固定する(アプリのページ)。null なら中身に合わせて伸びる(ウィジェット面)。 */
+    fixedRows: Int? = null,
     cell: @Composable (index: Int, placed: PlacedItem) -> Unit,
 ) {
     Layout(
-        modifier = modifier.dropTarget("grid:$zoneId") { DropTarget.Grid(zoneId, it, columns) },
+        modifier = modifier.dropTarget("grid:$zoneId") { DropTarget.Grid(zoneId, it, columns, fixedRows) },
         content = { zone.items.forEachIndexed { index, placed -> Box { cell(index, placed) } } },
     ) { measurables, constraints ->
         val cellPx = constraints.maxWidth / columns
-        val rows = maxOf(minRows, zone.occupiedRows + SLACK_ROWS)
+        val rows = fixedRows ?: maxOf(minRows, zone.occupiedRows + SLACK_ROWS)
         val height = (rows * cellPx).coerceIn(constraints.minHeight, constraints.maxHeight)
         val placeables = measurables.mapIndexed { index, measurable ->
             val p = zone.items[index]

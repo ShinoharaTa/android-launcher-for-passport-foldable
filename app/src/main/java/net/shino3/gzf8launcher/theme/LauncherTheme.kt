@@ -15,6 +15,8 @@ data class LauncherTheme(
     val id: String = "amber-terminal",
     val name: String = "AMBER TERMINAL",
     val columns: Int = 6,
+    /** アプリのページ 1 枚の段数。 */
+    val rows: Int = 7,
     val dockSlots: Int = 6,
     val folderColumns: Int = 3,
     val showLabels: Boolean = false,
@@ -71,6 +73,7 @@ fun ThemeSpec.toTheme(): LauncherTheme = LauncherTheme(
     id = id,
     name = name,
     columns = grid.columns,
+    rows = grid.rows,
     dockSlots = grid.dockSlots,
     folderColumns = grid.folderColumns,
     showLabels = icon.labels,

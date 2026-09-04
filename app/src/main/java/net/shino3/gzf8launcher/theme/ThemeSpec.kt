@@ -52,6 +52,8 @@ data class Gradient(val from: String, val to: String, val vertical: Boolean = tr
 @Serializable
 data class GridSpec(
     val columns: Int = 6,
+    /** アプリのページ 1 枚の段数。Fold8 はカバーもメインの片側も 7 段(#21)。 */
+    val rows: Int = 7,
     val dockSlots: Int = 6,
     val folderColumns: Int = 3,
 )
