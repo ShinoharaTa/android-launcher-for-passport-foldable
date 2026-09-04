@@ -39,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
@@ -79,7 +80,7 @@ fun AppDrawer(
     providers: List<AppWidgetProviderInfo>,
     /** ドロップ先グリッドのセル幅 px。AppWidget の最小サイズをセル数に直すのに使う。 */
     cellPx: Float,
-    onLaunch: (AppEntry) -> Unit,
+    onLaunch: (AppEntry, Rect) -> Unit,
 ) {
     val theme = LocalLauncherTheme.current
     var query by remember { mutableStateOf("") }
@@ -119,7 +120,7 @@ fun AppDrawer(
                                 .dragSource(
                                     payload = DragPayload(toItem(entry), null, entry.icon, entry.label),
                                     enabled = !hidden,
-                                    onTap = { onLaunch(entry) },
+                                    onTap = { bounds -> onLaunch(entry, bounds) },
                                 ),
                         )
                     }
@@ -133,7 +134,7 @@ fun AppDrawer(
             tab = tab,
             onTabChange = { tab = it },
             count = filtered.size,
-            onSubmit = { filtered.firstOrNull()?.let(onLaunch) },
+            onSubmit = { filtered.firstOrNull()?.let { onLaunch(it, Rect.Zero) } },
         )
     }
 }

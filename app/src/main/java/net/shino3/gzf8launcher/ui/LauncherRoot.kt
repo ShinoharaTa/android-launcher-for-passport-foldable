@@ -1,6 +1,10 @@
 package net.shino3.gzf8launcher.ui
 
 import android.app.Activity
+import android.app.ActivityOptions
+import android.os.Bundle
+import android.view.View
+import android.graphics.Rect as AndroidRect
 import android.view.WindowManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -33,12 +37,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import net.shino3.gzf8launcher.data.AppEntry
@@ -61,10 +69,13 @@ import net.shino3.gzf8launcher.widget.WidgetRegistry
 
 /** ホームの上に重ねるもの。同時に一つだけ。ドロワーは進捗で動かすので、ここには含めない。 */
 sealed interface Overlay {
-    data object Settings : Overlay
-    data object Home : Overlay
-    data class Folder(val ref: ItemRef) : Overlay
-    data class Menu(val payload: DragPayload) : Overlay
+    /** 触った場所。ここを原点にして広がる(#23)。 */
+    val source: Rect
+
+    data class Settings(override val source: Rect) : Overlay
+    data class Home(override val source: Rect) : Overlay
+    data class Folder(val ref: ItemRef, override val source: Rect) : Overlay
+    data class Menu(val payload: DragPayload, override val source: Rect) : Overlay
 }
 
 /** どの面を出すかを実寸 dp で決め(docs/01)、共通のドック、重ね描き、ドラッグを持つ。 */
@@ -83,6 +94,17 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
     val usagePermitted by controller.usagePermitted.collectAsStateWithLifecycle()
     val themes by controller.themes.collectAsStateWithLifecycle()
     var overlay by remember { mutableStateOf<Overlay?>(null) }
+    // 閉じる動きを見せるため、消えたあとも終わるまで描き続ける
+    var rendered by remember { mutableStateOf<Overlay?>(null) }
+    LaunchedEffect(overlay) {
+        val current = overlay
+        if (current != null) {
+            rendered = current
+        } else {
+            delay(OverlayAnim.EXIT_MILLIS.toLong())
+            rendered = null
+        }
+    }
     val sheet = rememberDrawerSheetState()
     // カバー(と縦長メイン)は 0 がウィジェット面、1 以降がアプリのページ。横長メインの右側はアプリのページだけ
     val coverPager = rememberPagerState(initialPage = 1) { 1 + layout.pages.size }
@@ -100,17 +122,18 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
                 overlay = null
                 sheet.close()
             },
-            onLongPress = { payload -> overlay = Overlay.Menu(payload) },
+            onLongPress = { payload, bounds -> overlay = Overlay.Menu(payload, bounds) },
             onCancel = { controller.pruneEmptyPages() },
         )
     }
-    val actions = remember(controller) {
+    val view = LocalView.current
+    val actions = remember(controller, view) {
         ItemActions(
-            onLaunch = { controller.launch(it) },
-            onOpenFolder = { overlay = Overlay.Folder(it) },
+            onLaunch = { entry, bounds -> controller.launch(entry, bounds.toAndroidRect(), view.scaleUpOptions(bounds)) },
+            onOpenFolder = { ref, bounds -> overlay = Overlay.Folder(ref, bounds) },
             resolveFolder = { controller.resolveFolder(it) },
             resolveShortcut = { controller.resolveShortcut(it) },
-            onLaunchShortcut = { controller.launchShortcut(it) },
+            onLaunchShortcut = { item, bounds -> controller.launchShortcut(item, bounds.toAndroidRect(), view.scaleUpOptions(bounds)) },
         )
     }
 
@@ -169,7 +192,7 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .longPressOnEmptySpace(drag) { overlay = Overlay.Home },
+                        .longPressOnEmptySpace(drag) { at -> overlay = Overlay.Home(Rect(at, at)) },
                 ) {
                     if (sideBySide) {
                         SideBySideSurface(layout, apps, actions, appsPager, onCreatePage = { controller.addPage() })
@@ -198,7 +221,10 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
                         widgets = WidgetRegistry.all.toList(),
                         providers = controller.appWidgets.providers(),
                         cellPx = cellPx,
-                        onLaunch = { controller.launch(it); sheet.close() },
+                        onLaunch = { entry, bounds ->
+                        controller.launch(entry, bounds.toAndroidRect(), view.scaleUpOptions(bounds))
+                        sheet.close()
+                    },
                     )
                 }
             }
@@ -206,20 +232,25 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
             if (session != null) {
                 Box(modifier = Modifier.fillMaxWidth().systemBarsPadding(), contentAlignment = Alignment.TopCenter) { RemoveBar() }
             }
-            when (val current = overlay) {
-                Overlay.Settings -> SettingsScreen(
+            val visible = overlay != null
+            when (val current = rendered) {
+                is Overlay.Settings -> SettingsScreen(
                     themes = themes,
                     currentThemeId = theme.id,
                     onApplyTheme = { controller.applyTheme(it) },
                     onClose = { overlay = null },
                 )
-                Overlay.Home -> HomeMenu(
-                    onOpenSettings = { overlay = Overlay.Settings },
+                is Overlay.Home -> HomeMenu(
+                    visible = visible,
+                    source = current.source,
+                    onOpenSettings = { overlay = Overlay.Settings(current.source) },
                     onOpenDrawer = { overlay = null; sheet.open() },
                     onDismiss = { overlay = null },
                 )
                 is Overlay.Folder -> FolderPopup(
                     folderRef = current.ref,
+                    visible = visible,
+                    source = current.source,
                     layout = layout,
                     apps = apps,
                     actions = actions,
@@ -232,14 +263,16 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
                 )
                 is Overlay.Menu -> ItemMenu(
                     payload = current.payload,
+                    visible = visible,
+                    source = current.source,
                     layout = layout,
                     shortcuts = menuShortcuts,
                     hidden = session != null,
                     onAppInfo = { controller.openAppDetails(it) },
-                    onOpenFolder = { overlay = Overlay.Folder(it) },
+                    onOpenFolder = { overlay = Overlay.Folder(it, current.source) },
                     onResize = { ref, dw, dh -> controller.resize(ref, dw, dh, theme.columns, theme.rows) },
                     onRemove = { controller.remove(it) },
-                    onLaunchShortcut = { controller.launchShortcut(it) },
+                    onLaunchShortcut = { item, bounds -> controller.launchShortcut(item, bounds.toAndroidRect(), view.scaleUpOptions(bounds)) },
                     onDismiss = { overlay = null },
                 )
                 null -> Unit
@@ -279,17 +312,17 @@ private fun ApplyWindowAppearance(theme: LauncherTheme) {
  * ドラッグが始まっていないことを確かめてから出す。
  */
 @Composable
-private fun Modifier.longPressOnEmptySpace(drag: DragController, onLongPress: () -> Unit): Modifier =
+private fun Modifier.longPressOnEmptySpace(drag: DragController, onLongPress: (Offset) -> Unit): Modifier =
     pointerInput(drag) {
         val wait = viewConfiguration.longPressTimeoutMillis + 150
         awaitEachGesture {
-            awaitFirstDown(requireUnconsumed = false)
+            val down = awaitFirstDown(requireUnconsumed = false)
             // スクロールなど他が消費したら cancelled。時間切れまで押されたままなら lifted も cancelled も偽
             var cancelled = false
             val lifted = withTimeoutOrNull(wait) {
                 waitForUpOrCancellation().also { if (it == null) cancelled = true }
             }
-            if (lifted == null && !cancelled && drag.session == null) onLongPress()
+            if (lifted == null && !cancelled && drag.session == null) onLongPress(down.position)
         }
     }
 
@@ -306,6 +339,24 @@ private fun Modifier.dragToOpenDrawer(sheet: net.shino3.gzf8launcher.ui.drawer.D
         onDragStopped = { velocity -> sheet.settle(velocity) },
     )
 }
+
+/** アイコンの矩形から画面が広がる起動オプション。矩形が分からないときは既定の遷移に任せる。 */
+private fun View.scaleUpOptions(bounds: Rect): Bundle? {
+    if (bounds.isEmpty) return null
+    return runCatching {
+        ActivityOptions.makeScaleUpAnimation(
+            this,
+            bounds.left.toInt(),
+            bounds.top.toInt(),
+            bounds.width.toInt(),
+            bounds.height.toInt(),
+        ).toBundle()
+    }.getOrNull()
+}
+
+/** アプリ側がメニューの位置決めに使う矩形。 */
+private fun Rect.toAndroidRect(): AndroidRect? =
+    if (isEmpty) null else AndroidRect(left.toInt(), top.toInt(), right.toInt(), bottom.toInt())
 
 /** ドラッグ中だけ画面上端に出る削除先。 */
 @Composable

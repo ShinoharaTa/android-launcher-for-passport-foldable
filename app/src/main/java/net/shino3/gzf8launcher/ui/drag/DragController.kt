@@ -22,7 +22,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalHapticFeedback
 import net.shino3.gzf8launcher.model.Item
 import net.shino3.gzf8launcher.model.ItemRef
@@ -72,14 +71,18 @@ sealed class DropTarget(val bounds: Rect, val priority: Int) {
 class DragController(
     private val slopPx: Float,
     private val onDrop: (DragSession, DropTarget?) -> Unit,
-    private val onLongPress: (DragPayload) -> Unit,
+    private val onLongPress: (DragPayload, Rect) -> Unit,
     private val onCancel: () -> Unit = {},
 ) {
     var session by mutableStateOf<DragSession?>(null)
         private set
+
+    /** 直前に長押しした要素の矩形。長押しメニューを出す起点に使う(#23)。 */
+    private var itemBounds: Rect = Rect.Zero
     val targets = mutableStateMapOf<String, DropTarget>()
 
-    fun begin(payload: DragPayload, position: Offset) {
+    fun begin(payload: DragPayload, position: Offset, bounds: Rect = Rect.Zero) {
+        itemBounds = bounds
         session = DragSession(payload, position)
     }
 
@@ -92,7 +95,7 @@ class DragController(
     fun end() {
         val s = session ?: return
         session = null
-        if (s.moved) onDrop(s, hitTest(s.position)) else onLongPress(s.payload)
+        if (s.moved) onDrop(s, hitTest(s.position)) else onLongPress(s.payload, itemBounds)
     }
 
     fun cancel() {
@@ -113,12 +116,18 @@ val LocalDragController = staticCompositionLocalOf<DragController> { error("Drag
  * もう片方に届かなくなる。ひとつのジェスチャ処理にまとめて順番に判定する。
  */
 @Composable
-fun Modifier.dragSource(payload: DragPayload, enabled: Boolean = true, onTap: (() -> Unit)? = null): Modifier {
+fun Modifier.dragSource(
+    payload: DragPayload,
+    enabled: Boolean = true,
+    /** 触った要素の矩形を受け取る。起動や重ね描きの起点に使う(#23)。 */
+    onTap: ((Rect) -> Unit)? = null,
+): Modifier {
     val controller = LocalDragController.current
     val haptic = LocalHapticFeedback.current
-    var origin by remember { mutableStateOf(Offset.Zero) }
+    var bounds by remember { mutableStateOf(Rect.Zero) }
+    val origin = bounds.topLeft
     return this
-        .onGloballyPositioned { origin = it.positionInRoot() }
+        .onGloballyPositioned { bounds = it.boundsInRoot() }
         .pointerInput(payload, enabled, onTap) {
             awaitEachGesture {
                 val down = awaitFirstDown(requireUnconsumed = false)
@@ -126,14 +135,14 @@ fun Modifier.dragSource(payload: DragPayload, enabled: Boolean = true, onTap: ((
                     val up = waitForUpOrCancellation()
                     if (up != null) {
                         up.consume()
-                        onTap?.invoke()
+                        onTap?.invoke(bounds)
                     }
                     return@awaitEachGesture
                 }
                 val longPress = awaitLongPressOrCancellation(down.id)
                 if (longPress != null) {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    controller.begin(payload, origin + longPress.position)
+                    controller.begin(payload, origin + longPress.position, bounds)
                     drag(longPress.id) { change ->
                         controller.move(change.positionChange())
                         change.consume()
@@ -143,7 +152,7 @@ fun Modifier.dragSource(payload: DragPayload, enabled: Boolean = true, onTap: ((
                 }
                 // 長押しにならなかった。指が既に離れていればタップ、まだ触れているならスクロール等に譲る
                 val stillDown = currentEvent.changes.any { it.id == down.id && it.pressed }
-                if (!stillDown) onTap?.invoke()
+                if (!stillDown) onTap?.invoke(bounds)
             }
         }
 }
