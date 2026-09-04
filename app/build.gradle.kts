@@ -13,8 +13,8 @@ android {
         // 実機 Fold8 は Android 17 (API 37)。手元の AVD `fold` が API 35 なので下限はそこに合わせる。
         minSdk = 35
         targetSdk = 37
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
     }
 
     buildTypes {
