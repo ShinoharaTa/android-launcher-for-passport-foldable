@@ -73,6 +73,7 @@ class DragController(
     private val slopPx: Float,
     private val onDrop: (DragSession, DropTarget?) -> Unit,
     private val onLongPress: (DragPayload) -> Unit,
+    private val onCancel: () -> Unit = {},
 ) {
     var session by mutableStateOf<DragSession?>(null)
         private set
@@ -96,6 +97,7 @@ class DragController(
 
     fun cancel() {
         session = null
+        onCancel()
     }
 
     fun hitTest(pos: Offset): DropTarget? =

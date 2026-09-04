@@ -16,7 +16,7 @@
     "gradient": { "from": "#00000000", "to": "#66000000", "vertical": true },
     "light": false
   },
-  "grid": { "columns": 6, "dockSlots": 6, "folderColumns": 3 },
+  "grid": { "columns": 6, "rows": 7, "dockSlots": 6, "folderColumns": 3 },
   "icon": { "scale": 0.62, "labels": false, "shape": "system" },
   "widgets": {
     "headers": true,

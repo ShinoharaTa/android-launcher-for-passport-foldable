@@ -26,20 +26,29 @@ data class Zone(val items: List<PlacedItem> = emptyList()) {
 
 /**
  * 配置の全体(docs/04「配置と見た目を別のファイルに分ける」)。
- * ホームは 2 ページで、どちらも縦にいくらでも伸びる(#19)。
- * カバーではページを横にめくり、開くとそのページが左右に並ぶ。
- * version 1 と 2 は読み込み時に移す。
+ * ウィジェット面は縦にいくらでも伸び、アプリは固定の段数のページを横にめくる(#19、#21)。
+ * カバーではウィジェット面とアプリの各ページを横にめくり、開くと左にウィジェット面、右にアプリのページが並ぶ。
+ * version 3 以前は読み込み時に移す。
  */
 @Serializable
 data class Layout(
     val version: Int = CURRENT_VERSION,
-    /** ページ 1。ウィジェットと大型フォルダの面。 */
+    /** ウィジェットと大型フォルダの面。 */
     val widgets: Zone = Zone(),
-    /** ページ 2。アプリとフォルダの面。HOME の着地。 */
-    val apps: Zone = Zone(),
+    /** アプリのページ。少なくとも 1 枚。先頭が HOME の着地。 */
+    val pages: List<Zone> = listOf(Zone()),
     val dock: List<Item> = emptyList(),
 ) {
+    /** 末尾に空のページを足す。ドラッグで右端に留めたときに使う。 */
+    fun withNewPage(): Layout = copy(pages = pages + Zone())
+
+    /** 空のページを消す。ただし最低 1 枚は残す。 */
+    fun withoutEmptyPages(): Layout {
+        val kept = pages.filter { it.items.isNotEmpty() }
+        return copy(pages = kept.ifEmpty { listOf(Zone()) })
+    }
+
     companion object {
-        const val CURRENT_VERSION = 3
+        const val CURRENT_VERSION = 4
     }
 }
