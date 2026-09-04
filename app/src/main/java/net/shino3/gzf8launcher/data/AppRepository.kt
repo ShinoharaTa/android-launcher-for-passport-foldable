@@ -4,6 +4,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.pm.LauncherApps
 import android.graphics.Rect
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.UserHandle
@@ -59,8 +60,9 @@ class AppRepository(private val context: Context) {
             .sortedBy { it.label.lowercase() }
     }
 
-    fun launch(entry: AppEntry, sourceBounds: Rect? = null) {
-        launcherApps.startMainActivity(entry.componentName, entry.user, sourceBounds, null)
+    /** opts は ActivityOptions.toBundle()。アイコンから画面が広がる動きに使う(#23)。 */
+    fun launch(entry: AppEntry, sourceBounds: Rect? = null, opts: Bundle? = null) {
+        launcherApps.startMainActivity(entry.componentName, entry.user, sourceBounds, opts)
     }
 
     /** アプリの追加・削除・更新のたびに Unit を流す。 */

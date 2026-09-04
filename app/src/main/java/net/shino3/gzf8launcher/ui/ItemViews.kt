@@ -20,6 +20,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -44,13 +45,13 @@ import net.shino3.gzf8launcher.widget.NativeWidgetHost
 
 /** アイテムに対する操作。種類ごとの動作はここに閉じる(docs/04)。 */
 class ItemActions(
-    val onLaunch: (AppEntry) -> Unit,
-    val onOpenFolder: (ItemRef) -> Unit,
+    val onLaunch: (AppEntry, Rect) -> Unit,
+    val onOpenFolder: (ItemRef, Rect) -> Unit,
     /** 規則つきフォルダの中身を解決する。 */
     val resolveFolder: (FolderItem) -> List<AppItem>,
     /** 固定したショートカットの表示名とアイコンを引き直す。 */
     val resolveShortcut: suspend (ShortcutItem) -> ShortcutEntry? = { null },
-    val onLaunchShortcut: (ShortcutItem) -> Unit = {},
+    val onLaunchShortcut: (ShortcutItem, Rect) -> Unit = { _, _ -> },
 )
 
 fun AppItem.fallbackLabel(): String = component.substringBefore('/').substringAfterLast('.')
@@ -84,7 +85,7 @@ fun ItemView(
                 showLabel = showLabel,
                 modifier = modifier.dragSource(
                     payload = DragPayload(item, ref, entry?.icon, entry?.label ?: item.fallbackLabel(), w, h),
-                    onTap = entry?.let { e -> { actions.onLaunch(e) } },
+                    onTap = entry?.let { e -> { bounds -> actions.onLaunch(e, bounds) } },
                 ),
             )
         }
@@ -96,7 +97,7 @@ fun ItemView(
             showLabel = showLabel,
             modifier = modifier.dragSource(
                 payload = DragPayload(item, ref, null, item.name, w, h),
-                onTap = { actions.onOpenFolder(ref) },
+                onTap = { bounds -> actions.onOpenFolder(ref, bounds) },
             ),
         )
         is NativeWidgetItem -> NativeWidgetHost(
@@ -142,7 +143,7 @@ fun ShortcutCell(
             .fillMaxSize()
             .dragSource(
                 payload = DragPayload(item, ref, entry?.icon, label, w, h),
-                onTap = { actions.onLaunchShortcut(item) },
+                onTap = { bounds -> actions.onLaunchShortcut(item, bounds) },
             ),
         contentAlignment = Alignment.Center,
     ) {

@@ -5,10 +5,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -31,7 +36,13 @@ fun AppWidgetView(item: AppWidgetItem, payload: DragPayload, modifier: Modifier 
     }
     val currentPayload by rememberUpdatedState(payload)
 
-    BoxWithConstraints(modifier = modifier.fillMaxSize().padding(4.dp)) {
+    var viewBounds by remember { mutableStateOf(Rect.Zero) }
+    BoxWithConstraints(
+        modifier = modifier
+            .fillMaxSize()
+            .onGloballyPositioned { viewBounds = it.boundsInRoot() }
+            .padding(4.dp),
+    ) {
         val widthDp = maxWidth.value.toInt()
         val heightDp = maxHeight.value.toInt()
         AndroidView(
@@ -42,7 +53,7 @@ fun AppWidgetView(item: AppWidgetItem, payload: DragPayload, modifier: Modifier 
                         private var last = Offset.Zero
                         override fun onLongPress(rawX: Float, rawY: Float) {
                             last = Offset(rawX, rawY)
-                            drag.begin(currentPayload, last)
+                            drag.begin(currentPayload, last, viewBounds)
                         }
 
                         override fun onDrag(rawX: Float, rawY: Float) {

@@ -71,13 +71,13 @@ class ShortcutRepository(private val context: Context) {
             ?.toEntry(user)
     }
 
-    fun launch(item: ShortcutItem) {
+    fun launch(item: ShortcutItem, sourceBounds: android.graphics.Rect? = null, opts: android.os.Bundle? = null) {
         if (!isHost()) {
             Log.w(TAG, "既定ホームでないのでショートカットを起動できない")
             return
         }
         runCatching {
-            launcherApps.startShortcut(item.packageName, item.shortcutId, null, null, userFor(item.user))
+            launcherApps.startShortcut(item.packageName, item.shortcutId, sourceBounds, opts, userFor(item.user))
         }.onFailure { Log.e(TAG, "ショートカットの起動に失敗した: ${item.packageName}/${item.shortcutId}", it) }
     }
 
