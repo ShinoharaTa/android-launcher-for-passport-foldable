@@ -13,9 +13,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.pager.rememberPagerState
@@ -260,8 +257,8 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
                         PagedSurface(layout, apps, actions, coverPager, gestures, onCreatePage = { controller.addPage() }, sidePadding = pageSidePadding)
                     }
                 }
-                // ドックはどの面でも上スワイプでドロワー
-                Dock(layout.dock, apps, actions, modifier = Modifier.dragToOpenDrawer(sheet))
+                // ドックはどの面でも上スワイプでドロワー、下スワイプで検索
+                Dock(layout.dock, apps, actions, modifier = Modifier.homeVerticalGestures(sheet, onSearch))
             }
 
             if (theme.decor.scanlines) Scanlines(theme.colors.line.copy(alpha = 0.06f))
@@ -279,7 +276,8 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
                         sheet = sheet,
                         hidden = session != null,
                         toItem = { controller.toAppItem(it) },
-                        focusSearch = searchFocus,
+                        // 上がりきってから焦点を当てる。途中で当てると入力欄がまだ付いておらず失敗する
+                        focusSearch = searchFocus && sheet.progress >= 1f,
                         onLaunch = { entry, bounds ->
                             controller.launch(entry, bounds.toAndroidRect(), view.scaleUpOptions(bounds))
                             sheet.close()
@@ -400,20 +398,6 @@ private fun Modifier.longPressOnEmptySpace(drag: DragController, onLongPress: (O
             if (lifted == null && !cancelled && drag.session == null) onLongPress(down.position)
         }
     }
-
-/**
- * 上方向のドラッグでドロワーを引き上げる。閾値で切り替えず、指の移動に追従させる(#11)。
- * 子の長押しドラッグとは、長押しの有無で切り分けられる。
- */
-@Composable
-private fun Modifier.dragToOpenDrawer(sheet: net.shino3.gzf8launcher.ui.drawer.DrawerSheetState): Modifier {
-    val state = rememberDraggableState { delta -> sheet.dragBy(delta) }
-    return draggable(
-        state = state,
-        orientation = Orientation.Vertical,
-        onDragStopped = { velocity -> sheet.settle(velocity) },
-    )
-}
 
 /** アイコンの矩形から画面が広がる起動オプション。矩形が分からないときは既定の遷移に任せる。 */
 private fun View.scaleUpOptions(bounds: Rect): Bundle? {

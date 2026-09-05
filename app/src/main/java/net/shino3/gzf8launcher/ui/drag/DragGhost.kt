@@ -31,7 +31,6 @@ import kotlin.math.roundToInt
 /** ドラッグ中にポインタへ追従する影。root の上に重ねて描く。 */
 @Composable
 fun DragGhost(session: DragSession) {
-    val theme = LocalLauncherTheme.current
     val size = 64.dp
     val half = with(LocalDensity.current) { (size / 2).toPx() }
     Box(

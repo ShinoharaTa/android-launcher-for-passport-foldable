@@ -45,13 +45,14 @@ fun Modifier.homeEdgeScroll(sheet: DrawerSheetState, onSearch: () -> Unit): Modi
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 // ドロワーを引き上げ始めたら、戻す向きも一覧より先に受ける
-                if (!tracker.lifting || available.y <= 0f) return Offset.Zero
+                if (source != NestedScrollSource.UserInput || !tracker.lifting || available.y <= 0f) return Offset.Zero
                 tracker.drag(available.y)
                 return Offset(0f, available.y)
             }
 
             override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
-                if (available.y == 0f) return Offset.Zero
+                // 指の動きだけを見る。フリングの減速で端に当たった分を積むと、次の操作で検索が誤発火する
+                if (source != NestedScrollSource.UserInput || available.y == 0f) return Offset.Zero
                 tracker.drag(available.y)
                 return Offset(0f, available.y)
             }
@@ -60,6 +61,11 @@ fun Modifier.homeEdgeScroll(sheet: DrawerSheetState, onSearch: () -> Unit): Modi
                 if (!tracker.active) return Velocity.Zero
                 tracker.stop(available.y)
                 return available
+            }
+
+            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                tracker.reset()
+                return Velocity.Zero
             }
         }
     }
@@ -98,6 +104,10 @@ private class VerticalTracker(
         } else if (pull > thresholdPx || (pull > 0f && velocity > FLING)) {
             onSearch()
         }
+        reset()
+    }
+
+    fun reset() {
         lifting = false
         pull = 0f
     }
