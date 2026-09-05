@@ -180,9 +180,9 @@ private fun MenuRow(label: String, accent: Boolean = false, onClick: () -> Unit)
     )
 }
 
-/** ホームの空き領域を長押ししたときのメニュー。設定への入口(2026-09-03 決定)。 */
+/** ホームの空き領域を長押ししたときのメニュー。ウィジェットの追加と設定への入口(#25)。 */
 @Composable
-fun HomeMenu(visible: Boolean, source: Rect?, onOpenSettings: () -> Unit, onOpenDrawer: () -> Unit, onDismiss: () -> Unit) {
+fun HomeMenu(visible: Boolean, source: Rect?, onOpenWidgets: () -> Unit, onOpenSettings: () -> Unit, onDismiss: () -> Unit) {
     val theme = LocalLauncherTheme.current
     val shape = RoundedCornerShape(theme.moduleRadius + 4.dp)
     OverlayScaffold(visible = visible, source = source, hidden = false, onDismiss = onDismiss) {
@@ -202,7 +202,7 @@ fun HomeMenu(visible: Boolean, source: Rect?, onOpenSettings: () -> Unit, onOpen
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
             )
             // どちらも別の重ね描きに移る。ここで閉じると移った先まで消えてしまう
-            MenuRow("ADD ITEM") { onOpenDrawer() }
+            MenuRow("WIDGETS") { onOpenWidgets() }
             MenuRow("SETTINGS") { onOpenSettings() }
         }
     }
