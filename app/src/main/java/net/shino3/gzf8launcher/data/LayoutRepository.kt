@@ -35,18 +35,38 @@ class LayoutRepository(private val context: Context) {
         val parsed = withContext(Dispatchers.IO) {
             val text = if (file.exists()) file.readText() else readPreset()
             runCatching { parse(text) }
-                .onFailure { Log.e(TAG, "layout.json の読み込みに失敗。空のレイアウトで続行する", it) }
+                .onFailure {
+                    Log.e(TAG, "layout.json の読み込みに失敗。空のレイアウトで続行する", it)
+                    // 読めなかったファイルは上書きされる前に退避し、あとから取り戻せるようにする
+                    if (file.exists()) file.copyTo(File(context.filesDir, UNREADABLE_NAME), overwrite = true)
+                }
                 .getOrDefault(Layout())
         }
         _layout.value = parsed
+        loaded = true
     }
+
+    /** load() が終わる前に書くと、まだ空の配置でファイルを潰してしまう。それを防ぐ印。 */
+    @Volatile private var loaded = false
+    private var backedUp = false
 
     /** 続けて呼ばれても書き込みが追い越さないように直列にする。 */
     suspend fun update(transform: (Layout) -> Layout) {
+        if (!loaded) {
+            Log.w(TAG, "読み込み前の書き込みを捨てた")
+            return
+        }
         val next = transform(_layout.value)
         _layout.value = next
         writeMutex.withLock {
-            withContext(Dispatchers.IO) { file.writeText(json.encodeToString(next)) }
+            withContext(Dispatchers.IO) {
+                // このプロセスで最初に書く前に、前回までの内容を 1 世代だけ残す
+                if (!backedUp && file.exists()) {
+                    file.copyTo(File(context.filesDir, BACKUP_NAME), overwrite = true)
+                    backedUp = true
+                }
+                file.writeText(json.encodeToString(next))
+            }
         }
     }
 
@@ -59,7 +79,7 @@ class LayoutRepository(private val context: Context) {
      */
     private fun parse(text: String): Layout {
         val root = json.parseToJsonElement(text).jsonObject
-        val version = root["version"]?.jsonPrimitive?.intOrNull ?: 1
+        val version = root["version"]?.jsonPrimitive?.intOrNull ?: inferVersion(root)
         val element = when {
             version >= Layout.CURRENT_VERSION -> root
             version == 3 -> migrateV3(root)
@@ -67,6 +87,19 @@ class LayoutRepository(private val context: Context) {
             else -> migrateV3(migrateV1(root))
         }
         return json.decodeFromJsonElement(Layout.serializer(), element)
+    }
+
+    /**
+     * version が書かれていないファイルの版を、キーの形から推定する。
+     * v0.2.0 と v0.3.0 は既定値を省く設定のせいで version を書いておらず、版 1 と誤判定して
+     * 中身を空にしていた。番号よりも形を信じる。
+     */
+    private fun inferVersion(root: JsonObject): Int = when {
+        "pages" in root -> 4
+        "apps" in root -> 3
+        root["cover"]?.jsonObject?.containsKey("shelf") == true -> 2
+        "cover" in root || "extension" in root -> 1
+        else -> Layout.CURRENT_VERSION
     }
 
     /** version 3: アプリ面が 1 枚 → それを先頭のページにする。 */
@@ -111,6 +144,8 @@ class LayoutRepository(private val context: Context) {
     companion object {
         private const val TAG = "LayoutRepository"
         private const val FILE_NAME = "layout.json"
+        private const val BACKUP_NAME = "layout.prev.json"
+        private const val UNREADABLE_NAME = "layout.unreadable.json"
         private const val PRESET_PATH = "layouts/default.json"
 
         val json = Json {
