@@ -34,6 +34,13 @@ class DrawerSheetState(private val scope: CoroutineScope) {
     var heightPx by mutableFloatStateOf(1f)
 
     val progress: Float get() = progressAnim.value
+
+    /**
+     * 指の移動を積んだ同期値。描画用の progress は非同期に追いつくので、
+     * ジェスチャの途中で「どこまで引いたか」を判定するときはこちらを見る。
+     */
+    val dragFraction: Float get() = accumulated
+
     val isOpen: Boolean get() = progressAnim.targetValue > 0.5f
     val isSettled: Boolean get() = !progressAnim.isRunning
 
@@ -103,17 +110,27 @@ fun DrawerSheetState.closeOnOverscroll(deadZone: Float): NestedScrollConnection 
             private var closing = false
             private val deadPx: Float get() = state.heightPx * deadZone
 
+            /** 閉じかけを指に付いて動かす。全開まで戻しきったら閉じかけを解いて、一覧にスクロールを返す。 */
+            private fun follow(delta: Float) {
+                state.dragBy(delta)
+                if (delta < 0f && state.dragFraction >= 1f - RELEASE_EPS) {
+                    closing = false
+                    pull = 0f
+                    state.open()
+                }
+            }
+
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 // 閉じ始めたら、戻す向き(上)も一覧より先に受けて進捗に返す
                 if (source != NestedScrollSource.UserInput || !closing || available.y >= 0f) return Offset.Zero
-                state.dragBy(available.y)
+                follow(available.y)
                 return Offset(0f, available.y)
             }
 
             override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
                 if (source != NestedScrollSource.UserInput || available.y == 0f) return Offset.Zero
                 if (closing) {
-                    state.dragBy(available.y)
+                    follow(available.y)
                     return Offset(0f, available.y)
                 }
                 if (available.y < 0f) {
@@ -163,3 +180,9 @@ fun DrawerSheetState.closeOnOverscroll(deadZone: Float): NestedScrollConnection 
 
 /** 一覧の先頭でこれより速く下に払ったら、距離に関わらず閉じる(px/秒)。 */
 private const val FAST_CLOSE = 2500f
+
+/**
+ * 抵抗を越えたあと、ここまで戻しきったら「決まった向き」を解く(進捗の割合)。
+ * 解かないと、戻しきって離しても確定してしまい、戻す向きの動きも一覧に返らない。
+ */
+const val RELEASE_EPS = 0.02f

@@ -14,6 +14,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import net.shino3.gzf8launcher.ui.drawer.DrawerSheetState
+import net.shino3.gzf8launcher.ui.drawer.RELEASE_EPS
 
 /**
  * ホームの縦方向のジェスチャ(#25)。他のランチャーと同じ向きに揃える。
@@ -144,6 +145,12 @@ private class EdgeTracker(
     fun overscroll(delta: Float): Float {
         if (lifting) {
             sheet.dragBy(delta)
+            // 引き戻しきった。持ち上げを解いて一覧にスクロールを返す。解かないと離したときに開いてしまう
+            if (delta > 0f && sheet.dragFraction <= RELEASE_EPS) {
+                lifting = false
+                pull = 0f
+                sheet.close()
+            }
             return delta
         }
         if ((delta > 0f && pull < 0f) || (delta < 0f && pull > 0f)) pull = 0f
