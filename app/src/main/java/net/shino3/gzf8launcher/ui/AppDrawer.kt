@@ -97,7 +97,7 @@ fun AppDrawer(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
-                .nestedScroll(sheet.closeOnOverscroll()),
+                .nestedScroll(sheet.closeOnOverscroll(DEAD_ZONE)),
             contentPadding = PaddingValues(horizontal = 8.dp),
         ) {
             items(filtered, key = { it.key.toString() }) { entry ->
