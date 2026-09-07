@@ -8,13 +8,14 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
         </intent>
-        <!-- 下スワイプで開く端末の全体検索(Galaxy の Finder など) -->
+        <!-- 下スワイプで開く端末の検索。Galaxy の Finder を優先し、無ければ全体検索(#29) -->
         <intent>
             <action android:name="android.search.action.GLOBAL_SEARCH" />
         </intent>
+        <package android:name="com.samsung.android.app.galaxyfinder" />
     </queries>
 
-    <!-- 規則つきフォルダ(最近起動、よく使う)のための使用状況アクセス。設定画面でユーザーが許可する -->
+    <!-- ドロワーの絞り込み(最近、よく使う)のための使用状況アクセス。設定画面でユーザーが許可する -->
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" />
 
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />

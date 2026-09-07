@@ -23,8 +23,10 @@ data class AppEntry(
     val componentName: ComponentName,
     val user: UserHandle,
     val userSerial: Long,
-    /** ApplicationInfo.category。規則つきフォルダのカテゴリ分類に使う。 */
+    /** ApplicationInfo.category。ドロワーのカテゴリ絞り込みに使う。付けていないアプリは -1。 */
     val category: Int,
+    /** 初回インストール時刻(ミリ秒)。ドロワーの「新着」に使う。 */
+    val installedAt: Long,
     val icon: ImageBitmap,
 ) {
     val key: AppKey get() = AppKey(componentName.flattenToString(), userSerial)
@@ -53,6 +55,7 @@ class AppRepository(private val context: Context) {
                             user = user,
                             userSerial = serial,
                             category = info.applicationInfo.category,
+                            installedAt = info.firstInstallTime,
                             icon = info.getIcon(densityDpi).toBitmap(ICON_PX, ICON_PX).asImageBitmap(),
                         )
                     }

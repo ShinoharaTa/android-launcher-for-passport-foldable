@@ -25,7 +25,6 @@ import net.shino3.gzf8launcher.theme.ThemeRepository
 import net.shino3.gzf8launcher.theme.ThemeSpec
 import net.shino3.gzf8launcher.widget.AppWidgetHostManager
 import net.shino3.gzf8launcher.model.FolderItem
-import net.shino3.gzf8launcher.model.FolderRule
 import net.shino3.gzf8launcher.model.ItemRef
 import net.shino3.gzf8launcher.model.Layout
 import net.shino3.gzf8launcher.model.LayoutEditor
@@ -71,6 +70,8 @@ class LauncherController(private val context: Context, private val scope: Corout
     val layout: StateFlow<Layout> = layoutRepository.layout
 
     private val _usage = MutableStateFlow<Map<String, UsageRepository.PackageUsage>>(emptyMap())
+    /** 直近 7 日の起動回数と最終起動。ドロワーの「最近」「よく使う」の絞り込みに使う(#29)。 */
+    val usage: StateFlow<Map<String, UsageRepository.PackageUsage>> = _usage
     private val _usagePermitted = MutableStateFlow(false)
     val usagePermitted: StateFlow<Boolean> = _usagePermitted
 
@@ -141,30 +142,6 @@ class LauncherController(private val context: Context, private val scope: Corout
         context.startActivity(usageRepository.settingsIntent())
     }
 
-    /** 規則つきフォルダの中身を解決する。手動フォルダはそのまま。 */
-    fun resolveFolder(folder: FolderItem): List<AppItem> {
-        val entries = _apps.value.values
-        return when (val rule = folder.rule) {
-            FolderRule.Manual -> folder.apps
-            is FolderRule.Recent -> rankByUsage(entries) { it.lastUsed }.take(rule.limit)
-            is FolderRule.Frequent -> rankByUsage(entries) { it.launches.toLong() }.take(rule.limit)
-            is FolderRule.Category -> entries
-                .filter { it.category == rule.category }
-                .sortedBy { it.label.lowercase() }
-                .take(rule.limit)
-                .map { toAppItem(it) }
-        }
-    }
-
-    private fun rankByUsage(entries: Collection<AppEntry>, score: (UsageRepository.PackageUsage) -> Long): List<AppItem> {
-        val usage = _usage.value
-        return entries
-            .mapNotNull { entry -> usage[entry.componentName.packageName]?.let { entry to score(it) } }
-            .sortedByDescending { it.second }
-            .distinctBy { it.first.componentName.packageName }
-            .map { toAppItem(it.first) }
-    }
-
     // ---- 編集 ----
 
     /**
@@ -200,9 +177,9 @@ class LauncherController(private val context: Context, private val scope: Corout
         return true
     }
 
-    /** 端末の全体検索(Galaxy の Finder など)を開く。無ければ false で、呼び出し側が自前の一覧に落とす。 */
+    /** 端末の検索(Galaxy の Finder、無ければ全体検索)を開く。どれも無ければ false で、呼び出し側が自前の一覧に落とす。 */
     fun openSearch(): Boolean {
-        val intent = GlobalSearch.intent(context) ?: return false
+        val intent = GlobalSearch.resolve(context) ?: return false
         return runCatching { context.startActivity(intent) }.isSuccess
     }
 
@@ -210,10 +187,6 @@ class LauncherController(private val context: Context, private val scope: Corout
 
     fun renameFolder(ref: ItemRef, name: String) = edit { LayoutEditor.rename(it, ref, name) }
 
-    fun setFolderRule(ref: ItemRef, rule: FolderRule) = edit { layout ->
-        val folder = LayoutEditor.itemAt(layout, ref) as? FolderItem ?: return@edit null
-        LayoutEditor.replace(layout, ref, folder.copy(rule = rule))
-    }
 
     /** pageRows はアプリのページの段数。ウィジェット面には上限がない。 */
     fun resize(ref: ItemRef, dw: Int, dh: Int, columns: Int, pageRows: Int) = edit { layout ->

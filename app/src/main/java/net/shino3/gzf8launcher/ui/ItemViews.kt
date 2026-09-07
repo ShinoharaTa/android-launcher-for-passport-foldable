@@ -47,8 +47,6 @@ import net.shino3.gzf8launcher.widget.NativeWidgetHost
 class ItemActions(
     val onLaunch: (AppEntry, Rect) -> Unit,
     val onOpenFolder: (ItemRef, Rect) -> Unit,
-    /** 規則つきフォルダの中身を解決する。 */
-    val resolveFolder: (FolderItem) -> List<AppItem>,
     /** 固定したショートカットの表示名とアイコンを引き直す。 */
     val resolveShortcut: suspend (ShortcutItem) -> ShortcutEntry? = { null },
     val onLaunchShortcut: (ShortcutItem, Rect) -> Unit = { _, _ -> },
@@ -92,7 +90,7 @@ fun ItemView(
         is FolderItem -> FolderCell(
             folder = item,
             apps = apps,
-            members = actions.resolveFolder(item),
+            members = item.apps,
             compact = w == 1 && h == 1,
             showLabel = showLabel,
             modifier = modifier.dragSource(

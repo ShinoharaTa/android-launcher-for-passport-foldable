@@ -1,5 +1,6 @@
 package net.shino3.gzf8launcher.ui
 
+import android.content.pm.ApplicationInfo
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -7,6 +8,7 @@ import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,6 +28,7 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -43,6 +46,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
@@ -51,6 +55,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import net.shino3.gzf8launcher.data.AppEntry
+import net.shino3.gzf8launcher.data.UsageRepository
 import net.shino3.gzf8launcher.model.AppItem
 import net.shino3.gzf8launcher.theme.LocalLauncherTheme
 import net.shino3.gzf8launcher.ui.drag.DragPayload
@@ -59,8 +64,9 @@ import net.shino3.gzf8launcher.ui.drawer.DrawerSheetState
 import net.shino3.gzf8launcher.ui.drawer.closeOnOverscroll
 
 /**
- * アプリドロワー(docs/04、#11 で作り直し、#25 で全アプリだけに絞った)。
- * 検索欄を下端に置き、一覧はその上をスクロールする。横長のメイン画面でも親指から届く。
+ * アプリドロワー(docs/04、#11 で作り直し、#25 で全アプリだけに、#29 で検索と絞り込みを上部に集めた)。
+ * 上から順に、取っ手、検索欄、絞り込みチップ、一覧。
+ * 検索欄を上に置くのは、上からスワイプで入る面だから。指はもう上にある。
  * ドックはホーム側に固定されたままで、ここには含まれない。ウィジェットの追加は長押しメニューから。
  */
 @Composable
@@ -70,17 +76,24 @@ fun AppDrawer(
     sheet: DrawerSheetState,
     hidden: Boolean,
     toItem: (AppEntry) -> AppItem,
-    /** 端末の全体検索が無いときの代わり。開いたら検索欄に焦点を当てる。 */
+    /** 直近 7 日の起動回数と最終起動。最近 / よく使う の並びに使う。 */
+    usage: Map<String, UsageRepository.PackageUsage>,
+    usagePermitted: Boolean,
+    onRequestUsagePermission: () -> Unit,
+    /** 端末の検索が無いときの代わり。開いたら検索欄に焦点を当てる。 */
     focusSearch: Boolean,
     onLaunch: (AppEntry, Rect) -> Unit,
 ) {
     val theme = LocalLauncherTheme.current
     var query by remember { mutableStateOf("") }
+    var filter by remember { mutableStateOf<DrawerFilter?>(null) }
     val gridState = rememberLazyGridState()
-    val filtered = remember(apps, query) { filterApps(apps, query) }
+    val chips = remember(apps) { availableFilters(apps) }
+    val shown = remember(apps, usage, query, filter) { applyFilter(filterApps(apps, query), filter, usage) }
+    val needsUsage = filter is DrawerFilter.Recent || filter is DrawerFilter.Frequent
 
-    // ドロワーを開いたまま検索語だけ変えたとき、先頭に戻す
-    LaunchedScrollReset(query, gridState)
+    // 検索語や絞り込みが変わったら先頭に戻す
+    LaunchedScrollReset(query, filter, gridState)
 
     Column(
         modifier = Modifier
@@ -91,6 +104,17 @@ fun AppDrawer(
             .imePadding(),
     ) {
         DragHandle(sheet)
+        SearchField(
+            query = query,
+            onQueryChange = { query = it },
+            count = shown.size,
+            focusSearch = focusSearch,
+            onSubmit = { shown.firstOrNull()?.let { onLaunch(it, Rect.Zero) } },
+        )
+        FilterChips(chips = chips, selected = filter, onSelect = { filter = if (filter == it) null else it })
+        if (needsUsage && !usagePermitted) {
+            UsagePermissionRow(onRequestUsagePermission)
+        }
         LazyVerticalGrid(
             columns = GridCells.Fixed(columns),
             state = gridState,
@@ -98,9 +122,9 @@ fun AppDrawer(
                 .weight(1f)
                 .fillMaxWidth()
                 .nestedScroll(sheet.closeOnOverscroll(DEAD_ZONE)),
-            contentPadding = PaddingValues(horizontal = 8.dp),
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
         ) {
-            items(filtered, key = { it.key.toString() }) { entry ->
+            items(shown, key = { it.key.toString() }) { entry ->
                 AppCell(
                     entry = entry,
                     fallback = entry.label,
@@ -115,20 +139,70 @@ fun AppDrawer(
                 )
             }
         }
-        BottomBar(
-            query = query,
-            onQueryChange = { query = it },
-            count = filtered.size,
-            focusSearch = focusSearch,
-            onSubmit = { filtered.firstOrNull()?.let { onLaunch(it, Rect.Zero) } },
-        )
     }
 }
 
-/** 検索語が変わったら一覧を先頭に戻す。 */
+/** ドロワーの絞り込み(#29)。一つだけ選べ、もう一度押すと外れる。 */
+sealed interface DrawerFilter {
+    val label: String
+
+    data object Recent : DrawerFilter { override val label = "RECENT" }
+    data object Frequent : DrawerFilter { override val label = "FREQUENT" }
+    data object New : DrawerFilter { override val label = "NEW" }
+
+    /** ApplicationInfo.CATEGORY_* の値。付けているアプリがある分だけチップに出す。 */
+    data class Category(val category: Int) : DrawerFilter {
+        override val label: String get() = CATEGORY_LABELS[category] ?: "OTHER"
+    }
+}
+
+private val CATEGORY_LABELS = mapOf(
+    ApplicationInfo.CATEGORY_GAME to "GAME",
+    ApplicationInfo.CATEGORY_AUDIO to "AUDIO",
+    ApplicationInfo.CATEGORY_VIDEO to "VIDEO",
+    ApplicationInfo.CATEGORY_IMAGE to "IMAGE",
+    ApplicationInfo.CATEGORY_SOCIAL to "SOCIAL",
+    ApplicationInfo.CATEGORY_NEWS to "NEWS",
+    ApplicationInfo.CATEGORY_MAPS to "MAPS",
+    ApplicationInfo.CATEGORY_PRODUCTIVITY to "PRODUCTIVITY",
+)
+
+/** 出すチップ。固定の 3 つと、アプリが 1 つでも付けているカテゴリ。 */
+private fun availableFilters(apps: List<AppEntry>): List<DrawerFilter> {
+    val categories = apps.map { it.category }.filter { it in CATEGORY_LABELS }.distinct()
+    return listOf(DrawerFilter.Recent, DrawerFilter.Frequent, DrawerFilter.New) +
+        CATEGORY_LABELS.keys.filter { it in categories }.map { DrawerFilter.Category(it) }
+}
+
+/** 絞り込みを当て、チップの意味に沿った順に並べる。絞り込みが無ければ名前順のまま。 */
+private fun applyFilter(
+    apps: List<AppEntry>,
+    filter: DrawerFilter?,
+    usage: Map<String, UsageRepository.PackageUsage>,
+): List<AppEntry> = when (filter) {
+    null -> apps
+    DrawerFilter.Recent -> apps
+        .mapNotNull { app -> usage[app.componentName.packageName]?.let { app to it.lastUsed } }
+        .sortedByDescending { it.second }
+        .map { it.first }
+    DrawerFilter.Frequent -> apps
+        .mapNotNull { app -> usage[app.componentName.packageName]?.let { app to it.launches } }
+        .sortedByDescending { it.second }
+        .map { it.first }
+    DrawerFilter.New -> {
+        val since = System.currentTimeMillis() - NEW_DAYS * 24L * 60 * 60 * 1000
+        apps.filter { it.installedAt >= since }.sortedByDescending { it.installedAt }
+    }
+    is DrawerFilter.Category -> apps.filter { it.category == filter.category }
+}
+
+/** 「新着」に入れる日数。 */
+private const val NEW_DAYS = 14
+
+/** 検索語か絞り込みが変わったら一覧を先頭に戻す。 */
 @Composable
-private fun LaunchedScrollReset(query: String, state: LazyGridState) {
-    LaunchedEffect(query) { state.scrollToItem(0) }
+private fun LaunchedScrollReset(query: String, filter: DrawerFilter?, state: LazyGridState) {
+    LaunchedEffect(query, filter) { state.scrollToItem(0) }
 }
 
 /**
@@ -179,9 +253,9 @@ private fun DragHandle(sheet: DrawerSheetState) {
     }
 }
 
-/** 下端に固定する検索欄。親指の届く位置に置く(#11)。 */
+/** 上部の検索欄(#29)。 */
 @Composable
-private fun BottomBar(
+private fun SearchField(
     query: String,
     onQueryChange: (String) -> Unit,
     count: Int,
@@ -195,7 +269,7 @@ private fun BottomBar(
     }
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
     ) {
         Box(
             modifier = Modifier
@@ -236,4 +310,49 @@ private fun BottomBar(
             )
         }
     }
+}
+
+/** 絞り込みチップの列。横に流れる。 */
+@Composable
+private fun FilterChips(chips: List<DrawerFilter>, selected: DrawerFilter?, onSelect: (DrawerFilter) -> Unit) {
+    val theme = LocalLauncherTheme.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+    ) {
+        chips.forEach { chip ->
+            val on = chip == selected
+            Text(
+                text = chip.label,
+                color = if (on) theme.colors.surface else theme.colors.textDim,
+                fontFamily = theme.monoFont,
+                fontSize = 10.sp,
+                modifier = Modifier
+                    .padding(end = 6.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(if (on) theme.colors.accent else Color.Transparent)
+                    .border(1.dp, if (on) theme.colors.accent else theme.colors.line, RoundedCornerShape(8.dp))
+                    .pointerInput(chip) { detectTapGestures { onSelect(chip) } }
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+            )
+        }
+    }
+}
+
+/** 最近 / よく使う に必要な使用状況の権限が無いときの導線。 */
+@Composable
+private fun UsagePermissionRow(onRequest: () -> Unit) {
+    val theme = LocalLauncherTheme.current
+    Text(
+        text = "USAGE ACCESS REQUIRED // TAP TO ALLOW",
+        color = theme.colors.accent,
+        fontFamily = theme.monoFont,
+        fontSize = 11.sp,
+        modifier = Modifier
+            .fillMaxWidth()
+            .pointerInput(Unit) { detectTapGestures { onRequest() } }
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+    )
 }

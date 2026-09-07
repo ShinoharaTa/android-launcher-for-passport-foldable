@@ -10,7 +10,9 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.buildJsonObject
@@ -82,11 +84,38 @@ class LayoutRepository(private val context: Context) {
         val version = root["version"]?.jsonPrimitive?.intOrNull ?: inferVersion(root)
         val element = when {
             version >= Layout.CURRENT_VERSION -> root
-            version == 3 -> migrateV3(root)
-            version == 2 -> migrateV3(migrateV2(root))
-            else -> migrateV3(migrateV1(root))
+            version == 4 -> migrateV4(root)
+            version == 3 -> migrateV4(migrateV3(root))
+            version == 2 -> migrateV4(migrateV3(migrateV2(root)))
+            else -> migrateV4(migrateV3(migrateV1(root)))
         }
         return json.decodeFromJsonElement(Layout.serializer(), element)
+    }
+
+    /**
+     * version 4 → 5: 規則つきフォルダ(rule が manual 以外)を全ゾーンから落とす(#29)。
+     * 中身は規則で毎回作っていたものなので、消してもユーザーの手作業は失われない。
+     */
+    private fun migrateV4(root: JsonObject): JsonObject {
+        fun isRuleFolder(placed: JsonElement): Boolean {
+            val item = placed.jsonObject["item"]?.jsonObject ?: return false
+            if (item["type"]?.jsonPrimitive?.contentOrNull != "folder") return false
+            val rule = item["rule"]?.jsonObject ?: return false
+            return rule["type"]?.jsonPrimitive?.contentOrNull != "manual"
+        }
+        fun strip(zone: JsonElement): JsonElement {
+            val items = zone.jsonObject["items"]?.jsonArray ?: return zone
+            return JsonObject(zone.jsonObject + ("items" to JsonArray(items.filterNot(::isRuleFolder))))
+        }
+        return buildJsonObject {
+            put("version", Layout.CURRENT_VERSION)
+            root["widgets"]?.let { put("widgets", strip(it)) }
+            root["pages"]?.let { pages -> put("pages", JsonArray(pages.jsonArray.map(::strip))) }
+            root["dock"]?.let { dock ->
+                // ドックの規則つきフォルダも落とす。ドックは PlacedItem ではなく Item の並び
+                put("dock", JsonArray(dock.jsonArray.filterNot { isRuleFolder(buildJsonObject { put("item", it) }) }))
+            }
+        }
     }
 
     /**
