@@ -24,7 +24,6 @@
     "variants": {}
   },
   "decor": {
-    "cornerBrackets": true,
     "scanlines": true,
     "zoneHeaders": true,
     "hingeMarker": true,

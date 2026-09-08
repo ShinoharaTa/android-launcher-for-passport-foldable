@@ -91,7 +91,6 @@ data class WidgetsSpec(
 
 @Serializable
 data class DecorSpec(
-    val cornerBrackets: Boolean = false,
     val scanlines: Boolean = false,
     val zoneHeaders: Boolean = true,
     val hingeMarker: Boolean = true,

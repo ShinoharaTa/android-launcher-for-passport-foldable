@@ -24,7 +24,6 @@
     "variants": { "clock": "plain", "status": "plain", "usage": "plain" }
   },
   "decor": {
-    "cornerBrackets": false,
     "scanlines": false,
     "zoneHeaders": false,
     "hingeMarker": false,

@@ -25,7 +25,7 @@ data class LauncherTheme(
     val widgetHeaders: Boolean = true,
     val widgetVariants: Map<String, String> = emptyMap(),
     val moduleRadius: Dp = 12.dp,
-    val decor: DecorSpec = DecorSpec(cornerBrackets = true, scanlines = true),
+    val decor: DecorSpec = DecorSpec(scanlines = true),
     val light: Boolean = false,
     /** 壁紙を透かすか。false なら壁紙を描かせない。 */
     val showWallpaper: Boolean = true,
