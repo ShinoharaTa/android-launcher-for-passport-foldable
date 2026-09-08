@@ -66,10 +66,23 @@ private fun fontFamily(name: String): FontFamily = when (name) {
     "mono" -> FontFamily.Monospace
     "serif" -> FontFamily.Serif
     "sans" -> FontFamily.SansSerif
+    // "default" / "system" / 未知の値はシステム既定
     else -> FontFamily.Default
 }
 
-fun ThemeSpec.toTheme(): LauncherTheme = LauncherTheme(
+/** 書体の上書き。THEME はテーマの指定に従い、SYSTEM は全部をシステム既定にする。 */
+enum class FontChoice(val label: String) { THEME("THEME"), SYSTEM("SYSTEM") }
+
+/**
+ * 設定画面からの上書き(#32)。theme.json とは別に持ち、テーマを切り替えても残る。
+ * iconShape が null ならテーマの指定に従う。
+ */
+data class ThemeOverrides(
+    val font: FontChoice = FontChoice.THEME,
+    val iconShape: IconShape? = null,
+)
+
+fun ThemeSpec.toTheme(overrides: ThemeOverrides = ThemeOverrides()): LauncherTheme = LauncherTheme(
     id = id,
     name = name,
     columns = grid.columns,
@@ -78,7 +91,7 @@ fun ThemeSpec.toTheme(): LauncherTheme = LauncherTheme(
     folderColumns = grid.folderColumns,
     showLabels = icon.labels,
     iconScale = icon.scale,
-    iconShape = icon.shape,
+    iconShape = overrides.iconShape ?: icon.shape,
     widgetHeaders = widgets.headers,
     widgetVariants = widgets.variants,
     moduleRadius = widgets.radius.dp,
@@ -89,8 +102,10 @@ fun ThemeSpec.toTheme(): LauncherTheme = LauncherTheme(
         val colors = listOf(parseColor(it.from), parseColor(it.to))
         if (it.vertical) Brush.verticalGradient(colors) else Brush.horizontalGradient(colors)
     },
-    uiFont = fontFamily(typography.ui),
-    monoFont = fontFamily(typography.mono),
+    // ui に等幅は使わない。日本語のアプリ名やフォルダ名が崩れる(#32)。
+    // 以前の theme.json には "mono" が保存されているので、ここで既定に倒す
+    uiFont = if (overrides.font == FontChoice.SYSTEM || typography.ui == "mono") FontFamily.Default else fontFamily(typography.ui),
+    monoFont = if (overrides.font == FontChoice.SYSTEM) FontFamily.Default else fontFamily(typography.mono),
     colors = LauncherColors(
         panel = parseColor(palette.panel),
         surface = parseColor(palette.surface),

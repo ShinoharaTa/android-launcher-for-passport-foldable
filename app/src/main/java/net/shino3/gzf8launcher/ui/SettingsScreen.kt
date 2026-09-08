@@ -3,6 +3,7 @@ package net.shino3.gzf8launcher.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -23,20 +24,27 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import net.shino3.gzf8launcher.theme.FontChoice
+import net.shino3.gzf8launcher.theme.IconShape
 import net.shino3.gzf8launcher.theme.LocalLauncherTheme
 import net.shino3.gzf8launcher.theme.Palette
+import net.shino3.gzf8launcher.theme.ThemeOverrides
 import net.shino3.gzf8launcher.theme.ThemeSpec
 import net.shino3.gzf8launcher.theme.parseColor
 
 /**
  * 設定画面。ホームの空き領域の長押しメニューから開く(2026-09-03 決定)。
- * いまはテーマの選択だけを持つ。今後の設定項目もここに足す。
+ * テーマの選択と、その上に重ねる上書き(書体、アイコンの形、#32)を持つ。
+ * 上書きはテーマを切り替えても残る。
  */
 @Composable
 fun SettingsScreen(
     themes: List<ThemeSpec>,
     currentThemeId: String,
+    overrides: ThemeOverrides,
     onApplyTheme: (ThemeSpec) -> Unit,
+    onFont: (FontChoice) -> Unit,
+    onIconShape: (IconShape?) -> Unit,
     onClose: () -> Unit,
 ) {
     val theme = LocalLauncherTheme.current
@@ -51,38 +59,60 @@ fun SettingsScreen(
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp),
+            modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
         ) {
             Text("SETTINGS", color = theme.colors.accent, fontFamily = theme.monoFont, fontSize = 14.sp, modifier = Modifier.weight(1f))
-            Text(
-                text = "CLOSE",
-                color = theme.colors.accent,
-                fontFamily = theme.monoFont,
-                fontSize = 12.sp,
-                modifier = Modifier.pointerInput(Unit) { detectTapGestures { onClose() } },
-            )
+            TextAction("CLOSE") { onClose() }
         }
         Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-            Text(
-                text = "THEME",
-                color = theme.colors.textDim,
-                fontFamily = theme.monoFont,
-                fontSize = 11.sp,
-                modifier = Modifier.padding(bottom = 8.dp),
-            )
+            SectionTitle("FONT")
+            Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(bottom = 6.dp)) {
+                FontChoice.entries.forEach { choice ->
+                    Chip(choice.label, selected = overrides.font == choice, modifier = Modifier.padding(end = 8.dp)) { onFont(choice) }
+                }
+            }
+            Note("SYSTEM にすると、すべての文字を端末の既定の書体で描く。日本語が崩れるときはこれにする。")
+
+            SectionTitle("ICON SHAPE")
+            Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(bottom = 6.dp)) {
+                Chip("THEME", selected = overrides.iconShape == null, modifier = Modifier.padding(end = 8.dp)) { onIconShape(null) }
+                IconShape.entries.forEach { shape ->
+                    Chip(shape.label, selected = overrides.iconShape == shape, modifier = Modifier.padding(end = 8.dp)) { onIconShape(shape) }
+                }
+            }
+            Note("SYSTEM は端末が切った形(Galaxy なら角丸四角)をそのまま出す。それ以外はアプリの背景と前景をこの形で切り直す。古い形式のアイコンは変わらない。")
+
+            SectionTitle("THEME")
             themes.forEach { spec ->
                 ThemeRow(spec, selected = spec.id == currentThemeId) { onApplyTheme(spec) }
             }
-            Text(
-                text = "同梱テーマを選ぶと内部ストレージの theme.json に書き出される。" +
-                    "そのファイルを直接書き換えれば、ここに無い見た目も作れる。",
-                color = theme.colors.textDim,
-                fontFamily = theme.uiFont,
-                fontSize = 11.sp,
-                modifier = Modifier.padding(vertical = 16.dp),
-            )
+            Note("同梱テーマを選ぶと内部ストレージの theme.json に書き出される。そのファイルを直接書き換えれば、ここに無い見た目も作れる。書体とアイコンの形の上書きはテーマとは別に残る。")
         }
     }
+}
+
+@Composable
+private fun SectionTitle(text: String) {
+    val theme = LocalLauncherTheme.current
+    Text(
+        text = text,
+        color = theme.colors.textDim,
+        fontFamily = theme.monoFont,
+        fontSize = 11.sp,
+        modifier = Modifier.padding(top = 14.dp, bottom = 8.dp),
+    )
+}
+
+@Composable
+private fun Note(text: String) {
+    val theme = LocalLauncherTheme.current
+    Text(
+        text = text,
+        color = theme.colors.textDim,
+        fontFamily = theme.uiFont,
+        fontSize = 11.sp,
+        modifier = Modifier.padding(bottom = 8.dp),
+    )
 }
 
 @Composable

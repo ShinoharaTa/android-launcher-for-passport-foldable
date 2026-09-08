@@ -31,5 +31,5 @@
     "outlines": true,
     "pageIndicator": true
   },
-  "typography": { "ui": "mono", "mono": "mono" }
+  "typography": { "ui": "default", "mono": "mono" }
 }

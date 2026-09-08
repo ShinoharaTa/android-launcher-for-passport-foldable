@@ -66,12 +66,17 @@ data class IconSpec(
     val shape: IconShape = IconShape.SYSTEM,
 )
 
-/** アイコンの形。SYSTEM はアプリが持つ形をそのまま出す。 */
+/**
+ * アイコンの形(#32)。SYSTEM は端末のマスク(Galaxy なら角丸四角)で切られたものをそのまま出す。
+ * それ以外は AdaptiveIcon の背景と前景を自前で描いてから、この形で切る。
+ */
 @Serializable
-enum class IconShape {
-    @SerialName("system") SYSTEM,
-    @SerialName("circle") CIRCLE,
-    @SerialName("squircle") SQUIRCLE,
+enum class IconShape(val label: String) {
+    @SerialName("system") SYSTEM("SYSTEM"),
+    @SerialName("circle") CIRCLE("CIRCLE"),
+    @SerialName("rounded") ROUNDED("ROUNDED"),
+    @SerialName("square") SQUARE("SQUARE"),
+    @SerialName("squircle") SQUIRCLE("SQUIRCLE"),
 }
 
 @Serializable
@@ -96,6 +101,10 @@ data class DecorSpec(
     val pageIndicator: Boolean = true,
 )
 
-/** 書体。"mono" / "sans" / "serif" / "default" のいずれか。 */
+/**
+ * 書体。"default"(システム既定) / "sans" / "serif" / "mono" のいずれか。
+ * ui はアプリ名やフォルダ名など日本語が入る場所、mono は "SEARCH // 26 APPS" のような英字の添え書き。
+ * 日本語を等幅で描くと崩れるので、ui は default にしておくのが安全(#32)。
+ */
 @Serializable
-data class TypographySpec(val ui: String = "sans", val mono: String = "mono")
+data class TypographySpec(val ui: String = "default", val mono: String = "mono")

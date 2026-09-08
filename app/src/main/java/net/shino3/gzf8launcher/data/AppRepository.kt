@@ -11,11 +11,11 @@ import android.os.UserHandle
 import android.os.UserManager
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.core.graphics.drawable.toBitmap
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import net.shino3.gzf8launcher.model.AppKey
+import net.shino3.gzf8launcher.theme.IconShape
 
 /** 起動可能なアクティビティ 1 件。 */
 data class AppEntry(
@@ -40,7 +40,8 @@ class AppRepository(private val context: Context) {
     private val launcherApps = context.getSystemService(LauncherApps::class.java)
     private val userManager = context.getSystemService(UserManager::class.java)
 
-    fun loadApps(): List<AppEntry> {
+    /** shape はアイコンの形。テーマや設定で変わったら呼び直して描き直す(#32)。 */
+    fun loadApps(shape: IconShape): List<AppEntry> {
         val densityDpi = context.resources.displayMetrics.densityDpi
         return userManager.userProfiles
             .flatMap { user ->
@@ -56,7 +57,7 @@ class AppRepository(private val context: Context) {
                             userSerial = serial,
                             category = info.applicationInfo.category,
                             installedAt = info.firstInstallTime,
-                            icon = info.getIcon(densityDpi).toBitmap(ICON_PX, ICON_PX).asImageBitmap(),
+                            icon = IconRenderer.render(info.getIcon(densityDpi), ICON_PX, shape).asImageBitmap(),
                         )
                     }
             }

@@ -9,8 +9,8 @@ import android.os.UserManager
 import android.util.Log
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.core.graphics.drawable.toBitmap
 import net.shino3.gzf8launcher.model.ShortcutItem
+import net.shino3.gzf8launcher.theme.IconShape
 
 /** アプリが持つ Android のショートカット 1 件。 */
 data class ShortcutEntry(
@@ -33,7 +33,11 @@ data class ShortcutEntry(
  * アプリのショートカットを読み、起動と固定を行う。
  * 既定ホームでないと読めない(hasShortcutHostPermission が false になる)。
  */
-class ShortcutRepository(private val context: Context) {
+class ShortcutRepository(
+    private val context: Context,
+    /** いまのアイコンの形。アプリのアイコンと同じ形で切る(#32)。 */
+    private val iconShape: () -> IconShape,
+) {
     private val launcherApps = context.getSystemService(LauncherApps::class.java)
     private val userManager = context.getSystemService(UserManager::class.java)
 
@@ -109,7 +113,7 @@ class ShortcutRepository(private val context: Context) {
             user = user,
             userSerial = userManager.getSerialNumberForUser(user),
             label = (longLabel ?: shortLabel ?: id).toString(),
-            icon = drawable?.toBitmap(ICON_PX, ICON_PX)?.asImageBitmap(),
+            icon = drawable?.let { IconRenderer.render(it, ICON_PX, iconShape()) }?.asImageBitmap(),
         )
     }
 

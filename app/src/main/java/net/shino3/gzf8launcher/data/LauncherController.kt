@@ -13,6 +13,12 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.map
+import net.shino3.gzf8launcher.theme.FontChoice
+import net.shino3.gzf8launcher.theme.IconShape
+import net.shino3.gzf8launcher.theme.ThemeOverrides
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import net.shino3.gzf8launcher.model.AppItem
@@ -40,7 +46,7 @@ class LauncherController(private val context: Context, private val scope: Corout
     private val layoutRepository = LayoutRepository(context)
     private val usageRepository = UsageRepository(context)
     private val themeRepository = ThemeRepository(context)
-    private val shortcutRepository = ShortcutRepository(context)
+    private val shortcutRepository = ShortcutRepository(context) { theme.value.iconShape }
     val appWidgets = AppWidgetHostManager(context)
 
     /** バインド許可と設定アクティビティはアクティビティの結果が要るので、その部分だけ外に出す。 */
@@ -95,6 +101,10 @@ class LauncherController(private val context: Context, private val scope: Corout
             refreshApps()
             appRepository.changes().collect { refreshApps() }
         }
+        // アイコンの形が変わったら描き直す。最初の値はテーマ読み込み前の既定なので飛ばす
+        scope.launch {
+            theme.map { it.iconShape }.distinctUntilChanged().drop(1).collect { refreshApps() }
+        }
     }
 
     /** 前面に戻るたびに呼ぶ。使用状況の権限と集計を更新する。 */
@@ -137,6 +147,14 @@ class LauncherController(private val context: Context, private val scope: Corout
     fun applyTheme(spec: ThemeSpec) {
         scope.launch { themeRepository.apply(spec) }
     }
+
+    /** 設定画面からの上書き(書体、アイコンの形)。テーマとは別に残る(#32)。 */
+    val overrides: StateFlow<ThemeOverrides> = themeRepository.overrides
+
+    fun setFont(choice: FontChoice) = themeRepository.setOverrides(overrides.value.copy(font = choice))
+
+    /** null でテーマの指定に戻す。 */
+    fun setIconShape(shape: IconShape?) = themeRepository.setOverrides(overrides.value.copy(iconShape = shape))
 
     fun requestUsagePermission() {
         context.startActivity(usageRepository.settingsIntent())
@@ -278,7 +296,8 @@ class LauncherController(private val context: Context, private val scope: Corout
             .toSet()
 
     private suspend fun refreshApps() {
-        _apps.value = withContext(Dispatchers.IO) { appRepository.loadApps() }.associateBy { it.key }
+        val shape = theme.value.iconShape
+        _apps.value = withContext(Dispatchers.IO) { appRepository.loadApps(shape) }.associateBy { it.key }
     }
 
     private suspend fun refreshUsage() {

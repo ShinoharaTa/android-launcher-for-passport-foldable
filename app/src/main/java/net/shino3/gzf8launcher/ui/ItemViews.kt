@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -36,7 +35,6 @@ import net.shino3.gzf8launcher.model.ItemRef
 import net.shino3.gzf8launcher.model.NativeWidgetItem
 import net.shino3.gzf8launcher.model.ShortcutItem
 import net.shino3.gzf8launcher.data.ShortcutEntry
-import net.shino3.gzf8launcher.theme.IconShape
 import net.shino3.gzf8launcher.theme.LocalLauncherTheme
 import net.shino3.gzf8launcher.ui.drag.DragPayload
 import net.shino3.gzf8launcher.ui.drag.dragSource
@@ -54,13 +52,13 @@ class ItemActions(
 
 fun AppItem.fallbackLabel(): String = component.substringBefore('/').substringAfterLast('.')
 
-/** テーマが指定するアイコンの形。SYSTEM はアプリが持つ形をそのまま出す。 */
+/**
+ * アイコンの形を Compose の Shape にしたもの。
+ * アイコンの Bitmap は読み込みの段階で形に切ってあるので(IconRenderer、#32)、ここでは切らない。
+ * 未インストールの印やフォルダの器など、自前で描く箱の輪郭に使う。
+ */
 @Composable
-private fun iconShape(): Shape? = when (LocalLauncherTheme.current.iconShape) {
-    IconShape.SYSTEM -> null
-    IconShape.CIRCLE -> CircleShape
-    IconShape.SQUIRCLE -> RoundedCornerShape(28)
-}
+private fun iconShape(): Shape = LocalLauncherTheme.current.iconShape.asShape()
 
 /** 種類で描画を振り分け、長押しドラッグを付ける。 */
 @Composable
@@ -149,17 +147,13 @@ fun ShortcutCell(
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             val icon = entry?.icon
             if (icon != null) {
-                Image(
-                    bitmap = icon,
-                    contentDescription = label,
-                    modifier = Modifier.size(iconSize).then(if (shape != null) Modifier.clip(shape) else Modifier),
-                )
+                Image(bitmap = icon, contentDescription = label, modifier = Modifier.size(iconSize))
             } else {
                 Box(
                     modifier = Modifier
                         .size(iconSize)
-                        .clip(shape ?: RoundedCornerShape(22))
-                        .border(1.dp, theme.colors.line, shape ?: RoundedCornerShape(22)),
+                        .clip(shape)
+                        .border(1.dp, theme.colors.line, shape),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text("→", color = theme.colors.textDim, fontFamily = theme.monoFont, fontSize = 14.sp)
@@ -197,20 +191,14 @@ fun AppCell(
         val iconSize = minOf(maxWidth, maxHeight) * theme.iconScale
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             if (entry != null) {
-                Image(
-                    bitmap = entry.icon,
-                    contentDescription = entry.label,
-                    modifier = Modifier
-                        .size(iconSize)
-                        .then(if (shape != null) Modifier.clip(shape) else Modifier),
-                )
+                Image(bitmap = entry.icon, contentDescription = entry.label, modifier = Modifier.size(iconSize))
             } else {
                 // 未インストールのアプリ。JSON の書き間違いを見つけられるように場所を空けたまま印を出す
                 Box(
                     modifier = Modifier
                         .size(iconSize)
-                        .clip(shape ?: RoundedCornerShape(22))
-                        .border(1.dp, theme.colors.line, shape ?: RoundedCornerShape(22)),
+                        .clip(shape)
+                        .border(1.dp, theme.colors.line, shape),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text("?", color = theme.colors.textDim, fontFamily = theme.monoFont, fontSize = 14.sp)
@@ -259,17 +247,18 @@ fun FolderCell(
             .clip(shape)
             .background(theme.colors.dock)
             .border(1.dp, theme.outline, shape)
-            .then(if (theme.decor.cornerBrackets) Modifier.cornerBrackets(theme.colors.accent) else Modifier)
+            .then(if (theme.decor.cornerBrackets) Modifier.cornerBrackets(theme.colors.accent, inset = theme.moduleRadius) else Modifier)
             .padding(6.dp),
     ) {
         val cols = theme.folderColumns
         val miniSize = (maxWidth - 12.dp) / cols * 0.78f
         Column(modifier = Modifier.fillMaxSize()) {
+            // フォルダ名は利用者が付けるので日本語が入る。等幅ではなく UI 書体で描く(#32)
             Text(
                 text = folder.name,
                 color = theme.colors.accent,
-                fontFamily = theme.monoFont,
-                fontSize = 9.sp,
+                fontFamily = theme.uiFont,
+                fontSize = 10.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -279,19 +268,9 @@ fun FolderCell(
                         Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
                             val entry = apps[app.key]
                             if (entry != null) {
-                                Image(
-                                    bitmap = entry.icon,
-                                    contentDescription = entry.label,
-                                    modifier = Modifier
-                                        .size(miniSize)
-                                        .then(if (iconShape != null) Modifier.clip(iconShape) else Modifier),
-                                )
+                                Image(bitmap = entry.icon, contentDescription = entry.label, modifier = Modifier.size(miniSize))
                             } else {
-                                Box(
-                                    modifier = Modifier
-                                        .size(miniSize)
-                                        .border(1.dp, theme.colors.line, iconShape ?: RoundedCornerShape(22)),
-                                )
+                                Box(modifier = Modifier.size(miniSize).border(1.dp, theme.colors.line, iconShape))
                             }
                         }
                     }
@@ -320,9 +299,9 @@ private fun CompactFolderCell(
             Box(
                 modifier = Modifier
                     .size(iconSize)
-                    .clip(iconShape ?: RoundedCornerShape(24))
+                    .clip(iconShape)
                     .background(theme.colors.dock)
-                    .border(1.dp, theme.outline, iconShape ?: RoundedCornerShape(24)),
+                    .border(1.dp, theme.outline, iconShape),
                 contentAlignment = Alignment.Center,
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -334,13 +313,10 @@ private fun CompactFolderCell(
                                     Image(
                                         bitmap = entry.icon,
                                         contentDescription = entry.label,
-                                        modifier = Modifier
-                                            .padding(1.dp)
-                                            .size(mini)
-                                            .then(if (iconShape != null) Modifier.clip(iconShape) else Modifier),
+                                        modifier = Modifier.padding(1.dp).size(mini),
                                     )
                                 } else {
-                                    Box(modifier = Modifier.padding(1.dp).size(mini).border(1.dp, theme.colors.line, RoundedCornerShape(22)))
+                                    Box(modifier = Modifier.padding(1.dp).size(mini).border(1.dp, theme.colors.line, iconShape))
                                 }
                             }
                         }

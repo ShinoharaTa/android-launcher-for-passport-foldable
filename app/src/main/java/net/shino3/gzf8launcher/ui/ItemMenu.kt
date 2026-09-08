@@ -71,11 +71,12 @@ fun ItemMenu(
                 .border(1.dp, theme.outline, shape)
                 .padding(vertical = 8.dp),
         ) {
+            // アプリ名は日本語が入るので UI 書体(#32)
             Text(
-                text = payload.label.uppercase(),
+                text = payload.label,
                 color = theme.colors.accent,
-                fontFamily = theme.monoFont,
-                fontSize = 11.sp,
+                fontFamily = theme.uiFont,
+                fontSize = 12.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
@@ -106,22 +107,21 @@ fun ItemMenu(
                         fontSize = 11.sp,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                     )
+                    // 押す場所なので 44dp 以上に取る(#32)
                     Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
                         listOf("W-" to (-1 to 0), "W+" to (1 to 0), "H-" to (0 to -1), "H+" to (0 to 1)).forEach { (label, d) ->
-                            Text(
-                                text = label,
-                                color = theme.colors.text,
-                                fontFamily = theme.monoFont,
-                                fontSize = 12.sp,
+                            Box(
                                 modifier = Modifier
                                     .weight(1f)
                                     .padding(4.dp)
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .border(1.dp, theme.colors.line, RoundedCornerShape(6.dp))
-                                    .pointerInput(label) { detectTapGestures { onResize(ref, d.first, d.second) } }
-                                    .padding(vertical = 6.dp),
-                                textAlign = TextAlign.Center,
-                            )
+                                    .height(TAP_MIN)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .border(1.dp, theme.colors.line, RoundedCornerShape(8.dp))
+                                    .pointerInput(label) { detectTapGestures { onResize(ref, d.first, d.second) } },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(label, color = theme.colors.text, fontFamily = theme.monoFont, fontSize = 13.sp)
+                            }
                         }
                     }
                 }
@@ -163,21 +163,6 @@ private fun ShortcutRow(entry: ShortcutEntry, onLaunch: (ShortcutItem, Rect) -> 
             modifier = Modifier.padding(start = 12.dp),
         )
     }
-}
-
-@Composable
-private fun MenuRow(label: String, accent: Boolean = false, onClick: () -> Unit) {
-    val theme = LocalLauncherTheme.current
-    Text(
-        text = label,
-        color = if (accent) theme.colors.accent else theme.colors.text,
-        fontFamily = theme.monoFont,
-        fontSize = 13.sp,
-        modifier = Modifier
-            .fillMaxWidth()
-            .pointerInput(label) { detectTapGestures { onClick() } }
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-    )
 }
 
 /** ホームの空き領域を長押ししたときのメニュー。ウィジェットの追加と設定への入口(#25)。 */

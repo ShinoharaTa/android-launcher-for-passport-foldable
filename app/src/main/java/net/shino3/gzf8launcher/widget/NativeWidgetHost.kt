@@ -31,6 +31,17 @@ fun NativeWidgetHost(item: NativeWidgetItem, modifier: Modifier = Modifier) {
     }
 }
 
+/**
+ * ウィジェット選択に出すプレビュー(#32)。置いたときと同じ枠と描画で、実際のデータを流す。
+ * 大きさは呼び出し側が既定サイズの比で決める。
+ */
+@Composable
+fun NativeWidgetPreview(widget: NativeWidget<*>, modifier: Modifier = Modifier) {
+    WidgetFrame(caption = widget.spec.name, modifier = modifier) {
+        WidgetContent(widget, JsonObject(emptyMap()))
+    }
+}
+
 @Composable
 private fun <T> WidgetContent(widget: NativeWidget<T>, config: JsonObject) {
     val context = LocalContext.current
@@ -54,7 +65,7 @@ fun WidgetFrame(caption: String, modifier: Modifier = Modifier, content: @Compos
             .clip(shape)
             .background(theme.colors.module)
             .border(1.dp, theme.outline, shape)
-            .then(if (theme.decor.cornerBrackets) Modifier.cornerBrackets(theme.colors.accent) else Modifier)
+            .then(if (theme.decor.cornerBrackets) Modifier.cornerBrackets(theme.colors.accent, inset = theme.moduleRadius) else Modifier)
             .padding(horizontal = 10.dp, vertical = 6.dp),
     ) {
         if (theme.widgetHeaders) {
