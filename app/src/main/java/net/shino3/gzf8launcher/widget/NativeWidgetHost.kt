@@ -65,7 +65,7 @@ fun WidgetFrame(caption: String, modifier: Modifier = Modifier, content: @Compos
             .clip(shape)
             .background(theme.colors.module)
             .border(1.dp, theme.outline, shape)
-            .then(if (theme.decor.cornerBrackets) Modifier.cornerBrackets(theme.colors.accent, inset = theme.moduleRadius) else Modifier)
+            .then(if (theme.decor.cornerBrackets) Modifier.cornerBrackets(theme.colors.accent, radius = theme.moduleRadius) else Modifier)
             .padding(horizontal = 10.dp, vertical = 6.dp),
     ) {
         if (theme.widgetHeaders) {

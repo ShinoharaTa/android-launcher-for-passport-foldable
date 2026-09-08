@@ -6,7 +6,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -14,26 +16,46 @@ import androidx.compose.ui.unit.dp
 /**
  * 四隅に L 字の線を描く。amber-terminal の計器らしさを出すための装飾。
  *
- * 角丸の箱では、角そのものに置くと丸めた枠線と交わって角だけ濃い塊になる(#32)。
- * inset に角丸の半径を渡すと、弧を避けて直線部分に乗るので、枠線の上にアクセント色の目盛りとして重なる。
+ * 角丸の箱では、直角の L 字を角に置くと丸めた枠線と交わって角だけ濃い塊になる(#32)。
+ * radius に角丸の半径を渡すと、L 字そのものを角丸に沿わせ(弧 + 両脚を一筆で)、枠線の角の上にぴったり重ねる。
+ * 枠線(border)は太さの半分だけ内側に描かれるので、こちらも同じだけ内側に寄せて線を揃える。
  */
-fun Modifier.cornerBrackets(color: Color, inset: Dp = 0.dp, length: Dp = 10.dp, width: Dp = 1.dp): Modifier =
+fun Modifier.cornerBrackets(color: Color, radius: Dp = 0.dp, length: Dp = 10.dp, width: Dp = 1.dp): Modifier =
     drawBehind {
         val len = length.toPx()
-        val off = inset.toPx()
-        val stroke = Stroke(width = width.toPx())
-        val w = size.width
-        val h = size.height
-        // 各角で、横線は角から inset だけ内側から始めて len 伸ばし、縦線も同じにする
-        listOf(
-            Triple(Offset(off, 0f), Offset(off + len, 0f), Offset(0f, off) to Offset(0f, off + len)),
-            Triple(Offset(w - off, 0f), Offset(w - off - len, 0f), Offset(w, off) to Offset(w, off + len)),
-            Triple(Offset(off, h), Offset(off + len, h), Offset(0f, h - off) to Offset(0f, h - off - len)),
-            Triple(Offset(w - off, h), Offset(w - off - len, h), Offset(w, h - off) to Offset(w, h - off - len)),
-        ).forEach { (hFrom, hTo, v) ->
-            drawLine(color, hFrom, hTo, strokeWidth = stroke.width)
-            drawLine(color, v.first, v.second, strokeWidth = stroke.width)
-        }
+        val sw = width.toPx()
+        val hw = sw / 2f
+        // 枠線の中心線に合わせた矩形と、その角の半径
+        val l = hw
+        val t = hw
+        val r = size.width - hw
+        val b = size.height - hw
+        val rad = (radius.toPx() - hw).coerceAtLeast(0f)
+        val d = rad * 2f
+
+        val path = Path()
+        // 左上: 左辺を上がり、弧を回って上辺へ
+        path.moveTo(l, t + rad + len)
+        path.lineTo(l, t + rad)
+        if (rad > 0f) path.arcTo(Rect(l, t, l + d, t + d), 180f, 90f, forceMoveTo = false)
+        path.lineTo(l + rad + len, t)
+        // 右上
+        path.moveTo(r - rad - len, t)
+        path.lineTo(r - rad, t)
+        if (rad > 0f) path.arcTo(Rect(r - d, t, r, t + d), 270f, 90f, forceMoveTo = false)
+        path.lineTo(r, t + rad + len)
+        // 右下
+        path.moveTo(r, b - rad - len)
+        path.lineTo(r, b - rad)
+        if (rad > 0f) path.arcTo(Rect(r - d, b - d, r, b), 0f, 90f, forceMoveTo = false)
+        path.lineTo(r - rad - len, b)
+        // 左下
+        path.moveTo(l + rad + len, b)
+        path.lineTo(l + rad, b)
+        if (rad > 0f) path.arcTo(Rect(l, b - d, l + d, b), 90f, 90f, forceMoveTo = false)
+        path.lineTo(l, b - rad - len)
+
+        drawPath(path, color, style = Stroke(width = sw))
     }
 
 /** 画面全体に薄い横線を重ねる。触れないように装飾専用の層に置く。 */

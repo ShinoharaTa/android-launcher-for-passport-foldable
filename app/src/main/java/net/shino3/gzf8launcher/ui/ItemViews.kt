@@ -247,7 +247,7 @@ fun FolderCell(
             .clip(shape)
             .background(theme.colors.dock)
             .border(1.dp, theme.outline, shape)
-            .then(if (theme.decor.cornerBrackets) Modifier.cornerBrackets(theme.colors.accent, inset = theme.moduleRadius) else Modifier)
+            .then(if (theme.decor.cornerBrackets) Modifier.cornerBrackets(theme.colors.accent, radius = theme.moduleRadius) else Modifier)
             .padding(6.dp),
     ) {
         val cols = theme.folderColumns
