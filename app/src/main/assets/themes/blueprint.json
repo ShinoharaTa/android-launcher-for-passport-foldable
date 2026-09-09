@@ -1,0 +1,69 @@
+{
+  "id": "blueprint",
+  "name": "BLUEPRINT",
+  "palette": {
+    "panel": "#FF0E2340",
+    "surface": "#FF102A4C",
+    "module": "#660E2340",
+    "dock": "#660E2340",
+    "line": "#996FA8DC",
+    "accent": "#FF7FD3FF",
+    "text": "#FFD6E8F7",
+    "textDim": "#FF6E90B4",
+    "alt": "#FFA8E0C0",
+    "warn": "#FFFFC46B"
+  },
+  "surface": {
+    "showWallpaper": false,
+    "gradient": null,
+    "light": false,
+    "blur": 0
+  },
+  "grid": {
+    "columns": 6,
+    "rows": 7,
+    "dockSlots": 6,
+    "folderColumns": 3,
+    "sidePadding": 8
+  },
+  "dock": {
+    "height": 74,
+    "padding": 2,
+    "inset": 18,
+    "style": "rail"
+  },
+  "insets": {
+    "top": 0,
+    "bottom": 0
+  },
+  "icon": {
+    "scale": 0.56,
+    "labels": true,
+    "shape": "rounded",
+    "tint": "tint"
+  },
+  "widgets": {
+    "headers": true,
+    "radius": 0,
+    "shape": "square",
+    "variants": {
+      "clock": "default",
+      "status": "default",
+      "usage": "default"
+    }
+  },
+  "decor": {
+    "scanlines": false,
+    "zoneHeaders": true,
+    "hingeMarker": true,
+    "outlines": true,
+    "pageIndicator": true,
+    "texture": "grid",
+    "outlineWidth": 1,
+    "shadow": "none"
+  },
+  "typography": {
+    "ui": "mono",
+    "mono": "mono"
+  }
+}

@@ -1,0 +1,69 @@
+{
+  "id": "dmg-pixel",
+  "name": "DMG PIXEL",
+  "palette": {
+    "panel": "#FF9BBC0F",
+    "surface": "#FF9BBC0F",
+    "module": "#FF8BAC0F",
+    "dock": "#FF8BAC0F",
+    "line": "#FF0F380F",
+    "accent": "#FF0F380F",
+    "text": "#FF0F380F",
+    "textDim": "#FF306230",
+    "alt": "#FF306230",
+    "warn": "#FF0F380F"
+  },
+  "surface": {
+    "showWallpaper": false,
+    "gradient": null,
+    "light": true,
+    "blur": 0
+  },
+  "grid": {
+    "columns": 6,
+    "rows": 7,
+    "dockSlots": 6,
+    "folderColumns": 3,
+    "sidePadding": 10
+  },
+  "dock": {
+    "height": 78,
+    "padding": 4,
+    "inset": 14,
+    "style": "rail"
+  },
+  "insets": {
+    "top": 0,
+    "bottom": 0
+  },
+  "icon": {
+    "scale": 0.56,
+    "labels": true,
+    "shape": "square",
+    "tint": "quantize"
+  },
+  "widgets": {
+    "headers": true,
+    "radius": 8,
+    "shape": "pixel",
+    "variants": {
+      "clock": "default",
+      "status": "segments",
+      "usage": "equalizer"
+    }
+  },
+  "decor": {
+    "scanlines": false,
+    "zoneHeaders": true,
+    "hingeMarker": false,
+    "outlines": true,
+    "pageIndicator": true,
+    "texture": "none",
+    "outlineWidth": 3,
+    "shadow": "none"
+  },
+  "typography": {
+    "ui": "mono",
+    "mono": "mono"
+  }
+}

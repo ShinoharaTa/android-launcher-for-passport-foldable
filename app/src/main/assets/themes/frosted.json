@@ -1,0 +1,73 @@
+{
+  "id": "frosted",
+  "name": "FROSTED",
+  "palette": {
+    "panel": "#33101018",
+    "surface": "#E6141420",
+    "module": "#26FFFFFF",
+    "dock": "#26FFFFFF",
+    "line": "#47FFFFFF",
+    "accent": "#FFFFFFFF",
+    "text": "#FFFFFFFF",
+    "textDim": "#B8FFFFFF",
+    "alt": "#FFFFD9A8",
+    "warn": "#FFFF9AA8"
+  },
+  "surface": {
+    "showWallpaper": true,
+    "gradient": {
+      "from": "#00000000",
+      "to": "#59000000",
+      "vertical": true
+    },
+    "light": false,
+    "blur": 16
+  },
+  "grid": {
+    "columns": 6,
+    "rows": 7,
+    "dockSlots": 6,
+    "folderColumns": 3,
+    "sidePadding": 12
+  },
+  "dock": {
+    "height": 84,
+    "padding": 4,
+    "inset": 16,
+    "style": "pill"
+  },
+  "insets": {
+    "top": 0,
+    "bottom": 0
+  },
+  "icon": {
+    "scale": 0.62,
+    "labels": true,
+    "shape": "circle",
+    "tint": "none"
+  },
+  "widgets": {
+    "headers": false,
+    "radius": 26,
+    "shape": "rounded",
+    "variants": {
+      "clock": "quiet",
+      "status": "plain",
+      "usage": "plain"
+    }
+  },
+  "decor": {
+    "scanlines": false,
+    "zoneHeaders": false,
+    "hingeMarker": false,
+    "outlines": true,
+    "pageIndicator": true,
+    "texture": "none",
+    "outlineWidth": 1,
+    "shadow": "none"
+  },
+  "typography": {
+    "ui": "default",
+    "mono": "default"
+  }
+}

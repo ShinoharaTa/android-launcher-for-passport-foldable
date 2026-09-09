@@ -26,13 +26,16 @@ class ThemeRepository(private val context: Context) {
     private val _overrides = MutableStateFlow(readOverrides())
     val overrides: StateFlow<ThemeOverrides> = _overrides
 
-    /** 同梱テーマ。設定画面の一覧に出す。 */
+    /**
+     * 同梱テーマ。設定画面の一覧に出す。
+     * ファイル名順だと後から足した案が既存の 2 つのあいだに割り込むので、並びは明示する(#41)。
+     */
     suspend fun bundled(): List<ThemeSpec> = withContext(Dispatchers.IO) {
         runCatching {
             context.assets.list(ASSET_DIR).orEmpty()
                 .filter { it.endsWith(".json") }
-                .sorted()
                 .mapNotNull { name -> readAsset("$ASSET_DIR/$name") }
+                .sortedWith(compareBy({ ORDER.indexOf(it.id).takeIf { i -> i >= 0 } ?: ORDER.size }, { it.id }))
         }.getOrDefault(emptyList())
     }
 
@@ -102,6 +105,17 @@ class ThemeRepository(private val context: Context) {
         private const val FILE_NAME = "theme.json"
         private const val ASSET_DIR = "themes"
         private const val DEFAULT_ASSET = "amber-terminal.json"
+        /**
+         * 設定画面に出す順(#41)。もとからある 2 つを先頭に、あとは暗い順・明るい順で交互ではなく、
+         * 性格の近いものを隣に置く。ここに無い id は末尾へ回す。
+         */
+        private val ORDER = listOf(
+            "amber-terminal", "paper-white",
+            "hud-console", "blueprint", "instrument",
+            "dmg-pixel", "hard-print",
+            "frosted", "eink-note", "stealth",
+        )
+
         private const val PREFS_NAME = "settings"
         private const val KEY_FONT = "font"
         private const val KEY_ICON_SHAPE = "iconShape"
