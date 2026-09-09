@@ -58,6 +58,7 @@ data class Layout(
     }
 
     companion object {
-        const val CURRENT_VERSION = 4
+        /** 5: 規則つきフォルダを廃止(#29)。version 4 の配置は規則つきフォルダを落として読む。 */
+        const val CURRENT_VERSION = 5
     }
 }

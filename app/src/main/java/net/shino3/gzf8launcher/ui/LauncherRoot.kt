@@ -101,6 +101,7 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
     val apps by controller.apps.collectAsStateWithLifecycle()
     val layout by controller.layout.collectAsStateWithLifecycle()
     val usagePermitted by controller.usagePermitted.collectAsStateWithLifecycle()
+    val usage by controller.usage.collectAsStateWithLifecycle()
     val themes by controller.themes.collectAsStateWithLifecycle()
     var overlay by remember { mutableStateOf<Overlay?>(null) }
     // 閉じる動きを見せるため、消えたあとも終わるまで描き続ける
@@ -156,7 +157,6 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
         ItemActions(
             onLaunch = { entry, bounds -> controller.launch(entry, bounds.toAndroidRect(), view.scaleUpOptions(bounds)) },
             onOpenFolder = { ref, bounds -> overlay = Overlay.Folder(ref, bounds) },
-            resolveFolder = { controller.resolveFolder(it) },
             resolveShortcut = { controller.resolveShortcut(it) },
             onLaunchShortcut = { item, bounds -> controller.launchShortcut(item, bounds.toAndroidRect(), view.scaleUpOptions(bounds)) },
         )
@@ -276,6 +276,9 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
                         sheet = sheet,
                         hidden = session != null,
                         toItem = { controller.toAppItem(it) },
+                        usage = usage,
+                        usagePermitted = usagePermitted,
+                        onRequestUsagePermission = { controller.requestUsagePermission() },
                         // 上がりきってから焦点を当てる。途中で当てると入力欄がまだ付いておらず失敗する
                         focusSearch = searchFocus && sheet.progress >= 1f,
                         onLaunch = { entry, bounds ->
@@ -321,10 +324,7 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
                     apps = apps,
                     actions = actions,
                     hidden = session != null,
-                    usagePermitted = usagePermitted,
                     onRename = { controller.renameFolder(current.ref, it) },
-                    onRuleChange = { controller.setFolderRule(current.ref, it) },
-                    onRequestUsagePermission = { controller.requestUsagePermission() },
                     onDismiss = { overlay = null },
                 )
                 is Overlay.Menu -> ItemMenu(

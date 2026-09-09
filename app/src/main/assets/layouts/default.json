@@ -1,5 +1,5 @@
 {
-  "version": 4,
+  "version": 5,
   "widgets": {
     "items": [
       {
@@ -34,32 +34,6 @@
       },
       {
         "col": 0,
-        "row": 2,
-        "w": 2,
-        "h": 2,
-        "item": {
-          "type": "folder",
-          "name": "RECENT",
-          "rule": {
-            "type": "recent"
-          }
-        }
-      },
-      {
-        "col": 2,
-        "row": 2,
-        "w": 2,
-        "h": 2,
-        "item": {
-          "type": "folder",
-          "name": "FREQUENT",
-          "rule": {
-            "type": "frequent"
-          }
-        }
-      },
-      {
-        "col": 4,
         "row": 2,
         "w": 2,
         "h": 2,

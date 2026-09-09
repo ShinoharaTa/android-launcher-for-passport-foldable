@@ -47,11 +47,7 @@ object LayoutEditor {
         is ItemRef.InFolder -> {
             val folder = itemAt(layout, ref.folder) as? FolderItem ?: return layout
             val rest = folder.apps.filterIndexed { i, _ -> i != ref.index }
-            when {
-                folder.rule != FolderRule.Manual -> replace(layout, ref.folder, folder.copy(apps = rest))
-                rest.isEmpty() -> remove(layout, ref.folder)
-                else -> replace(layout, ref.folder, folder.copy(apps = rest))
-            }
+            if (rest.isEmpty()) remove(layout, ref.folder) else replace(layout, ref.folder, folder.copy(apps = rest))
         }
     }
 
@@ -152,10 +148,10 @@ object LayoutEditor {
         return layout.copy(dock = dock + item)
     }
 
-    /** アプリ + アプリ → 新しいフォルダ。手動フォルダ + アプリ → 追加。それ以外は結合しない。 */
+    /** アプリ + アプリ → 新しいフォルダ。フォルダ + アプリ → 追加。それ以外は結合しない。 */
     private fun merge(occupant: Item, incoming: Item): Item? = when {
         occupant is AppItem && incoming is AppItem -> FolderItem(DEFAULT_FOLDER_NAME, listOf(occupant, incoming))
-        occupant is FolderItem && incoming is AppItem && occupant.rule == FolderRule.Manual -> occupant.copy(apps = occupant.apps + incoming)
+        occupant is FolderItem && incoming is AppItem -> occupant.copy(apps = occupant.apps + incoming)
         else -> null
     }
 
