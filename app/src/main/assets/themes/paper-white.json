@@ -28,7 +28,8 @@
     "scanlines": false,
     "zoneHeaders": false,
     "hingeMarker": false,
-    "outlines": false
+    "outlines": false,
+    "pageIndicator": true
   },
   "typography": { "ui": "serif", "mono": "sans" }
 }

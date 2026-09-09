@@ -92,6 +92,8 @@ fun ItemView(
             folder = item,
             apps = apps,
             members = actions.resolveFolder(item),
+            compact = w == 1 && h == 1,
+            showLabel = showLabel,
             modifier = modifier.dragSource(
                 payload = DragPayload(item, ref, null, item.name, w, h),
                 onTap = { actions.onOpenFolder(ref) },
@@ -231,14 +233,23 @@ fun AppCell(
     }
 }
 
-/** フォルダの表面。中身のアイコンを小さく並べて見せる。 */
+/**
+ * フォルダの表面。中身のアイコンを小さく並べて見せる。
+ * 1×1(アプリ棚やドック)のときは名前を出さず、アイコン大の角丸の中に 4 つまで並べる(#16)。
+ */
 @Composable
 fun FolderCell(
     folder: FolderItem,
     apps: Map<AppKey, AppEntry>,
     members: List<AppItem>,
     modifier: Modifier = Modifier,
+    compact: Boolean = false,
+    showLabel: Boolean = false,
 ) {
+    if (compact) {
+        CompactFolderCell(folder, apps, members, showLabel, modifier)
+        return
+    }
     val theme = LocalLauncherTheme.current
     val shape = RoundedCornerShape(theme.moduleRadius)
     val iconShape = iconShape()
@@ -287,6 +298,67 @@ fun FolderCell(
                     }
                     repeat(cols - row.size) { Box(modifier = Modifier.weight(1f)) }
                 }
+            }
+        }
+    }
+}
+
+/** 1 セルのフォルダ。アプリのアイコンと同じ大きさの角丸に、中身を 2×2 で見せる。 */
+@Composable
+private fun CompactFolderCell(
+    folder: FolderItem,
+    apps: Map<AppKey, AppEntry>,
+    members: List<AppItem>,
+    showLabel: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val theme = LocalLauncherTheme.current
+    val iconShape = iconShape()
+    BoxWithConstraints(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        val iconSize = minOf(maxWidth, maxHeight) * theme.iconScale
+        val mini = iconSize * 0.36f
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(
+                modifier = Modifier
+                    .size(iconSize)
+                    .clip(iconShape ?: RoundedCornerShape(24))
+                    .background(theme.colors.dock)
+                    .border(1.dp, theme.outline, iconShape ?: RoundedCornerShape(24)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    members.take(4).chunked(2).forEach { row ->
+                        Row {
+                            row.forEach { app ->
+                                val entry = apps[app.key]
+                                if (entry != null) {
+                                    Image(
+                                        bitmap = entry.icon,
+                                        contentDescription = entry.label,
+                                        modifier = Modifier
+                                            .padding(1.dp)
+                                            .size(mini)
+                                            .then(if (iconShape != null) Modifier.clip(iconShape) else Modifier),
+                                    )
+                                } else {
+                                    Box(modifier = Modifier.padding(1.dp).size(mini).border(1.dp, theme.colors.line, RoundedCornerShape(22)))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if (showLabel) {
+                Text(
+                    text = folder.name,
+                    color = theme.colors.text,
+                    fontFamily = theme.uiFont,
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 2.dp, start = 2.dp, end = 2.dp),
+                )
             }
         }
     }

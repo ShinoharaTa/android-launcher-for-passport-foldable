@@ -28,7 +28,8 @@
     "scanlines": true,
     "zoneHeaders": true,
     "hingeMarker": true,
-    "outlines": true
+    "outlines": true,
+    "pageIndicator": true
   },
   "typography": { "ui": "mono", "mono": "mono" }
 }

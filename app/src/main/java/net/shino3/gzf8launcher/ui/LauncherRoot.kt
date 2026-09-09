@@ -13,8 +13,7 @@ import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -48,8 +47,6 @@ import net.shino3.gzf8launcher.data.ShortcutEntry
 import net.shino3.gzf8launcher.model.AppItem
 import net.shino3.gzf8launcher.model.AppKey
 import net.shino3.gzf8launcher.model.ItemRef
-import net.shino3.gzf8launcher.model.Layout
-import net.shino3.gzf8launcher.model.ZoneId
 import net.shino3.gzf8launcher.theme.LauncherTheme
 import net.shino3.gzf8launcher.theme.LocalLauncherTheme
 import net.shino3.gzf8launcher.ui.drag.DragController
@@ -87,6 +84,7 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
     val themes by controller.themes.collectAsStateWithLifecycle()
     var overlay by remember { mutableStateOf<Overlay?>(null) }
     val sheet = rememberDrawerSheetState()
+    val pagerState = rememberPagerState(initialPage = Pages.APPS) { Pages.COUNT }
     val density = LocalDensity.current
 
     ApplyWindowAppearance(theme)
@@ -126,13 +124,18 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
         controller.homeSignal.collect {
             overlay = null
             sheet.close()
+            pagerState.animateScrollToPage(Pages.APPS)
         }
     }
 
     val containerSize = LocalWindowInfo.current.containerSize
     val widthDp = with(density) { containerSize.width.toDp() }
     val isCover = widthDp < 600.dp
-    val gridWidthPx = (containerSize.width / (if (isCover) 1 else 2)) - with(density) { 16.dp.toPx() }
+    // 開いて縦長にしたときは 1 ページずつ。余白を広げて置く
+    val isTallMain = !isCover && containerSize.height > containerSize.width
+    val sideBySide = !isCover && !isTallMain
+    val pageSidePadding = if (isTallMain) 40.dp else 8.dp
+    val gridWidthPx = (containerSize.width / (if (sideBySide) 2 else 1)) - with(density) { (pageSidePadding * 2).toPx() }
     val cellPx = gridWidthPx / theme.columns
     val session = drag.session
 
@@ -157,19 +160,19 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
                     }
                     .systemBarsPadding(),
             ) {
+                // ホームは縦スクロールなので、上ドラッグでドロワーを開く入口は置かない(#19)
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .dragToOpenDrawer(sheet)
                         .longPressOnEmptySpace(drag) { overlay = Overlay.Home },
                 ) {
-                    if (isCover) {
-                        CoverSurface(layout, apps, actions)
+                    if (sideBySide) {
+                        SideBySideSurface(layout, apps, actions)
                     } else {
-                        MainSurface(layout, apps, actions)
+                        PagedSurface(layout, apps, actions, pagerState, sidePadding = pageSidePadding)
                     }
                 }
-                Dock(layout.dock, apps, actions, Modifier.dragToOpenDrawer(sheet))
+                Dock(layout.dock, apps, actions, onOpenDrawer = { sheet.open() }, modifier = Modifier.dragToOpenDrawer(sheet))
             }
 
             if (theme.decor.scanlines) Scanlines(theme.colors.line.copy(alpha = 0.06f))
@@ -183,7 +186,7 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
                 ) {
                     AppDrawer(
                         apps = apps.values.sortedBy { it.label.lowercase() },
-                        columns = if (isCover) theme.columns else theme.columns * 2,
+                        columns = if (sideBySide) theme.columns * 2 else theme.columns,
                         sheet = sheet,
                         hidden = session != null,
                         toItem = { controller.toAppItem(it) },
@@ -276,8 +279,12 @@ private fun Modifier.longPressOnEmptySpace(drag: DragController, onLongPress: ()
         val wait = viewConfiguration.longPressTimeoutMillis + 150
         awaitEachGesture {
             awaitFirstDown(requireUnconsumed = false)
-            val lifted = withTimeoutOrNull(wait) { waitForUpOrCancellation() }
-            if (lifted == null && drag.session == null) onLongPress()
+            // スクロールなど他が消費したら cancelled。時間切れまで押されたままなら lifted も cancelled も偽
+            var cancelled = false
+            val lifted = withTimeoutOrNull(wait) {
+                waitForUpOrCancellation().also { if (it == null) cancelled = true }
+            }
+            if (lifted == null && !cancelled && drag.session == null) onLongPress()
         }
     }
 
@@ -310,62 +317,4 @@ private fun RemoveBar() {
     ) {
         Text("DROP HERE TO REMOVE", color = theme.colors.accent, fontFamily = theme.monoFont, fontSize = 12.sp)
     }
-}
-
-/** カバー画面(閉)。カバー面のゾーンをそのまま描く。 */
-@Composable
-fun CoverSurface(
-    layout: Layout,
-    apps: Map<AppKey, AppEntry>,
-    actions: ItemActions,
-    modifier: Modifier = Modifier,
-) {
-    val theme = LocalLauncherTheme.current
-    HomeGrid(layout.cover, ZoneId.COVER, theme.columns, modifier.fillMaxSize().padding(horizontal = 8.dp, vertical = 8.dp)) { index, placed ->
-        ItemView(placed.item, ItemRef.Grid(ZoneId.COVER, index), apps, actions, w = placed.w, h = placed.h)
-    }
-}
-
-/**
- * メイン画面(開)。右をアンカー(カバー面の参照)、左を拡張パネルにする(docs/03)。
- * アンカーの左右切り替えは #3 で扱う。
- */
-@Composable
-fun MainSurface(
-    layout: Layout,
-    apps: Map<AppKey, AppEntry>,
-    actions: ItemActions,
-    modifier: Modifier = Modifier,
-) {
-    val theme = LocalLauncherTheme.current
-    Row(modifier = modifier.fillMaxSize()) {
-        Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
-            ZoneHeader("EXT.PANEL // UNFOLD+")
-            HomeGrid(layout.extension, ZoneId.EXTENSION, theme.columns, Modifier.weight(1f).padding(horizontal = 8.dp)) { index, placed ->
-                ItemView(placed.item, ItemRef.Grid(ZoneId.EXTENSION, index), apps, actions, w = placed.w, h = placed.h)
-            }
-        }
-        if (theme.decor.hingeMarker) {
-            Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(theme.colors.line))
-        }
-        Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
-            ZoneHeader("PRIMARY // SYNC:COVER")
-            HomeGrid(layout.cover, ZoneId.COVER, theme.columns, Modifier.weight(1f).padding(horizontal = 8.dp)) { index, placed ->
-                ItemView(placed.item, ItemRef.Grid(ZoneId.COVER, index), apps, actions, w = placed.w, h = placed.h)
-            }
-        }
-    }
-}
-
-@Composable
-private fun ZoneHeader(text: String) {
-    val theme = LocalLauncherTheme.current
-    if (!theme.decor.zoneHeaders) return
-    Text(
-        text = text,
-        color = theme.colors.textDim,
-        fontFamily = theme.monoFont,
-        fontSize = 10.sp,
-        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-    )
 }
