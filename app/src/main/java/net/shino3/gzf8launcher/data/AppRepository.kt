@@ -15,7 +15,7 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import net.shino3.gzf8launcher.model.AppKey
-import net.shino3.gzf8launcher.theme.IconShape
+import net.shino3.gzf8launcher.theme.IconStyle
 
 /** 起動可能なアクティビティ 1 件。 */
 data class AppEntry(
@@ -40,8 +40,8 @@ class AppRepository(private val context: Context) {
     private val launcherApps = context.getSystemService(LauncherApps::class.java)
     private val userManager = context.getSystemService(UserManager::class.java)
 
-    /** shape はアイコンの形。テーマや設定で変わったら呼び直して描き直す(#32)。 */
-    fun loadApps(shape: IconShape): List<AppEntry> {
+    /** style はアイコンの形と色の落とし方。テーマや設定で変わったら呼び直して描き直す(#32、#40)。 */
+    fun loadApps(style: IconStyle): List<AppEntry> {
         val densityDpi = context.resources.displayMetrics.densityDpi
         return userManager.userProfiles
             .flatMap { user ->
@@ -57,7 +57,7 @@ class AppRepository(private val context: Context) {
                             userSerial = serial,
                             category = info.applicationInfo.category,
                             installedAt = info.firstInstallTime,
-                            icon = IconRenderer.render(info.getIcon(densityDpi), ICON_PX, shape).asImageBitmap(),
+                            icon = IconRenderer.render(info.getIcon(densityDpi), ICON_PX, style.shape, style.tint, style.accent).asImageBitmap(),
                         )
                     }
             }

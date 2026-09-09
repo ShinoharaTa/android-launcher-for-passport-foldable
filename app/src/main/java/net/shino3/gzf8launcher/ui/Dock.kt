@@ -1,7 +1,5 @@
 package net.shino3.gzf8launcher.ui
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -9,17 +7,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import net.shino3.gzf8launcher.data.AppEntry
 import net.shino3.gzf8launcher.model.AppKey
 import net.shino3.gzf8launcher.model.Item
 import net.shino3.gzf8launcher.model.ItemRef
+import net.shino3.gzf8launcher.theme.DockStyle
 import net.shino3.gzf8launcher.theme.LocalLauncherTheme
 import net.shino3.gzf8launcher.ui.drag.DropTarget
 import net.shino3.gzf8launcher.ui.drag.dropTarget
@@ -40,7 +37,14 @@ fun Dock(
     modifier: Modifier = Modifier,
 ) {
     val theme = LocalLauncherTheme.current
-    val shape = RoundedCornerShape(theme.moduleRadius + 8.dp)
+    // レールの見せ方(#40)。PILL は左右を丸め、SEPARATE と NONE はレールを描かない
+    val corner = if (theme.dockStyle == DockStyle.PILL) theme.dockHeight / 2 else theme.moduleRadius + 8.dp
+    val bare = theme.dockStyle == DockStyle.SEPARATE || theme.dockStyle == DockStyle.NONE
+    val rail = if (bare) {
+        Modifier
+    } else {
+        Modifier.moduleSurface(corner = corner, fill = theme.colors.dock)
+    }
     // 開いた横長の画面では、幅いっぱいに広げると 6 個が散って薄く見える。1 スロットあたりの幅に上限を置き、中央に寄せる
     Box(
         modifier = modifier
@@ -54,12 +58,12 @@ fun Dock(
                 .widthIn(max = SLOT_MAX_WIDTH * theme.dockSlots)
                 .fillMaxWidth()
                 .height(theme.dockHeight)
-                .clip(shape)
-                .background(theme.colors.dock)
-                .border(1.dp, theme.outline, shape)
+                .then(rail)
                 .dropTarget("dock") { DropTarget.Dock(it, theme.dockSlots) }
                 .padding(theme.dockPadding),
         ) {
+            // NONE は落とし先だけ残して中身を見せない
+            if (theme.dockStyle == DockStyle.NONE) return@Row
             repeat(theme.dockSlots) { slot ->
                 Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
                     items.getOrNull(slot)?.let { item ->

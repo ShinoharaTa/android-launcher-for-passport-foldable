@@ -238,15 +238,13 @@ fun FolderCell(
         return
     }
     val theme = LocalLauncherTheme.current
-    val shape = RoundedCornerShape(theme.moduleRadius)
     val iconShape = iconShape()
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .padding(4.dp)
-            .clip(shape)
-            .background(theme.colors.dock)
-            .border(1.dp, theme.outline, shape)
+            // ウィジェットと同じ面にする。形も枠も影もテーマが決める(#40)
+            .moduleSurface(fill = theme.colors.dock)
             .padding(6.dp),
     ) {
         val cols = theme.folderColumns
@@ -342,13 +340,13 @@ private fun CompactFolderCell(
 @Composable
 fun WidgetPlaceholder(caption: String, modifier: Modifier = Modifier) {
     val theme = LocalLauncherTheme.current
-    val shape = RoundedCornerShape(theme.moduleRadius)
+    val shape = theme.shapeOf(theme.moduleRadius)
     Box(
         modifier = modifier
             .fillMaxSize()
             .padding(4.dp)
             .clip(shape)
-            .border(1.dp, theme.colors.line, shape)
+            .border(theme.outlineWidth, theme.colors.line, shape)
             .padding(8.dp),
         contentAlignment = Alignment.TopStart,
     ) {

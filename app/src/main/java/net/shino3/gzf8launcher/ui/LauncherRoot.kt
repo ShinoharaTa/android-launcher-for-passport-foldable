@@ -270,7 +270,7 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
                 )
             }
 
-            if (theme.decor.scanlines) Scanlines(theme.colors.line.copy(alpha = 0.06f))
+            TextureOverlay(theme.texture, theme.colors.line.copy(alpha = 0.06f))
 
             // ドロワー。進捗に応じて下から上がる
             if (sheet.progress > 0f) {

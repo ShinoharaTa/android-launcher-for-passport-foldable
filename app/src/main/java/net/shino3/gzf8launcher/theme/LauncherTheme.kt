@@ -3,6 +3,7 @@ package net.shino3.gzf8launcher.theme
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -32,9 +33,21 @@ data class LauncherTheme(
     val showLabels: Boolean = false,
     val iconScale: Float = 0.62f,
     val iconShape: IconShape = IconShape.SYSTEM,
+    val iconTint: IconTint = IconTint.NONE,
     val widgetHeaders: Boolean = true,
     val widgetVariants: Map<String, String> = emptyMap(),
     val moduleRadius: Dp = 12.dp,
+    /** 枠の形(#40)。 */
+    val moduleShape: ModuleShape = ModuleShape.ROUNDED,
+    /** 枠線の太さ(#40)。 */
+    val outlineWidth: Dp = 1.dp,
+    /** 枠に付ける影(#40)。 */
+    val shadow: ShadowStyle = ShadowStyle.NONE,
+    /** 下地に敷く模様(#40)。 */
+    val texture: Texture = Texture.NONE,
+    /** すりガラスの度合い。0 なら不透明のまま(#40)。 */
+    val glass: Dp = 0.dp,
+    val dockStyle: DockStyle = DockStyle.RAIL,
     val decor: DecorSpec = DecorSpec(scanlines = true),
     val light: Boolean = false,
     /** 壁紙を透かすか。false なら壁紙を描かせない。 */
@@ -46,7 +59,20 @@ data class LauncherTheme(
 ) {
     /** 枠線の色。装飾で枠線を消しているテーマでは透明を返す。 */
     val outline: Color get() = if (decor.outlines) colors.line else Color.Transparent
+
+    /** すりガラスのテーマか。面を半透明にして縁を光らせる(#40)。 */
+    val isGlass: Boolean get() = glass > 0.dp
+
+    /** アイコンを描き直すのに要るものひとまとめ。これが変わったらアプリ一覧を読み直す(#40)。 */
+    val iconStyle: IconStyle get() = IconStyle(iconShape, iconTint, colors.accent.toArgb())
 }
+
+/** アイコンの描き方。形と色の落とし方、染めるときの色(#40)。 */
+data class IconStyle(
+    val shape: IconShape,
+    val tint: IconTint = IconTint.NONE,
+    val accent: Int = 0,
+)
 
 data class LauncherColors(
     val panel: Color = Color(0xCC0B0F14),
@@ -57,6 +83,10 @@ data class LauncherColors(
     val accent: Color = Color(0xFFFFB000),
     val text: Color = Color(0xFFE6E1D6),
     val textDim: Color = Color(0xFF8A8F98),
+    /** 並べたグラフの 2 本目など。テーマが指定しなければ accent と同じ(#40)。 */
+    val alt: Color = accent,
+    /** 注意を引く色。テーマが指定しなければ accent と同じ(#40)。 */
+    val warn: Color = accent,
 )
 
 val LocalLauncherTheme = staticCompositionLocalOf { LauncherTheme() }
@@ -121,9 +151,17 @@ fun ThemeSpec.toTheme(overrides: ThemeOverrides = ThemeOverrides()): LauncherThe
     showLabels = icon.labels,
     iconScale = icon.scale,
     iconShape = overrides.iconShape ?: icon.shape,
+    iconTint = icon.tint,
     widgetHeaders = widgets.headers,
     widgetVariants = widgets.variants,
     moduleRadius = widgets.radius.dp,
+    moduleShape = widgets.shape,
+    outlineWidth = decor.outlineWidth.dp,
+    shadow = decor.shadow,
+    // texture を書いていない古いテーマは scanlines から決める(#40)
+    texture = decor.texture ?: if (decor.scanlines) Texture.SCANLINES else Texture.NONE,
+    glass = surface.blur.dp,
+    dockStyle = dock.style,
     decor = decor,
     light = surface.light,
     showWallpaper = surface.showWallpaper,
@@ -144,5 +182,7 @@ fun ThemeSpec.toTheme(overrides: ThemeOverrides = ThemeOverrides()): LauncherThe
         accent = parseColor(palette.accent),
         text = parseColor(palette.text),
         textDim = parseColor(palette.textDim),
+        alt = palette.alt?.let { parseColor(it) } ?: parseColor(palette.accent),
+        warn = palette.warn?.let { parseColor(it) } ?: parseColor(palette.accent),
     ),
 )

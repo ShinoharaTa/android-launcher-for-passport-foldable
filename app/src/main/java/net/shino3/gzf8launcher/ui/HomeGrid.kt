@@ -77,7 +77,7 @@ private fun DropPreviewFrame(kind: LayoutEditor.DropKind) {
     val theme = LocalLauncherTheme.current
     val reject = Color(0xFFE5484D)
     val color = if (kind == LayoutEditor.DropKind.REJECT) reject else theme.colors.accent
-    val shape = if (kind == LayoutEditor.DropKind.MERGE) CircleShape else RoundedCornerShape(theme.moduleRadius)
+    val shape = if (kind == LayoutEditor.DropKind.MERGE) CircleShape else theme.shapeOf(theme.moduleRadius)
     val inset = if (kind == LayoutEditor.DropKind.MERGE) 10.dp else 3.dp
     val stroke = if (kind == LayoutEditor.DropKind.MERGE) 2.dp else 1.5.dp
     val fill = if (kind == LayoutEditor.DropKind.PUSH) 0.10f else 0.04f

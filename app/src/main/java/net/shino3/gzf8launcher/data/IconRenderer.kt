@@ -10,6 +10,7 @@ import android.graphics.drawable.AdaptiveIconDrawable
 import android.graphics.drawable.Drawable
 import androidx.core.graphics.drawable.toBitmap
 import net.shino3.gzf8launcher.theme.IconShape
+import net.shino3.gzf8launcher.theme.IconTint
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.pow
@@ -26,7 +27,12 @@ import kotlin.math.sin
  * AdaptiveIcon でない古いアイコンは形を持たないので、そのまま出す。
  */
 object IconRenderer {
-    fun render(drawable: Drawable, sizePx: Int, shape: IconShape): Bitmap {
+    fun render(drawable: Drawable, sizePx: Int, shape: IconShape, tint: IconTint = IconTint.NONE, accent: Int = 0): Bitmap {
+        val shaped = shapeOnly(drawable, sizePx, shape)
+        return if (tint == IconTint.NONE) shaped else recolor(shaped, tint, accent)
+    }
+
+    private fun shapeOnly(drawable: Drawable, sizePx: Int, shape: IconShape): Bitmap {
         if (shape == IconShape.SYSTEM || drawable !is AdaptiveIconDrawable) {
             return drawable.toBitmap(sizePx, sizePx)
         }
@@ -43,6 +49,47 @@ object IconRenderer {
         }
         Canvas(out).drawPath(maskPath(shape, sizePx.toFloat()), paint)
         return out
+    }
+
+    /**
+     * 色を落とす(#40)。
+     * MONO は彩度を 0 に、QUANTIZE は階調を刻んで減色、TINT は accent の一色に染めて形だけ残す。
+     * どれも透明度はそのまま残すので、アイコンの輪郭は崩れない。
+     */
+    private fun recolor(source: Bitmap, tint: IconTint, accent: Int): Bitmap {
+        val w = source.width
+        val h = source.height
+        val px = IntArray(w * h)
+        source.getPixels(px, 0, w, 0, 0, w, h)
+        val ar = (accent shr 16) and 0xFF
+        val ag = (accent shr 8) and 0xFF
+        val ab = accent and 0xFF
+        for (i in px.indices) {
+            val c = px[i]
+            val a = (c ushr 24) and 0xFF
+            if (a == 0) continue
+            val r = (c shr 16) and 0xFF
+            val g = (c shr 8) and 0xFF
+            val b = c and 0xFF
+            // 人の目の感じ方に合わせた明るさ
+            val luma = ((r * 299 + g * 587 + b * 114) / 1000).coerceIn(0, 255)
+            px[i] = when (tint) {
+                IconTint.NONE -> c
+                IconTint.MONO -> (a shl 24) or (luma shl 16) or (luma shl 8) or luma
+                IconTint.QUANTIZE -> {
+                    val step = 255 / (QUANTIZE_LEVELS - 1)
+                    val q = ((luma + step / 2) / step * step).coerceIn(0, 255)
+                    (a shl 24) or (q shl 16) or (q shl 8) or q
+                }
+                // 明るさで accent の濃さを決める。暗い画素ほど濃く出る
+                IconTint.TINT -> {
+                    val k = luma / 255f
+                    val mix = { base: Int -> (base * (TINT_FLOOR + (1f - TINT_FLOOR) * k)).toInt().coerceIn(0, 255) }
+                    (a shl 24) or (mix(ar) shl 16) or (mix(ag) shl 8) or mix(ab)
+                }
+            }
+        }
+        return Bitmap.createBitmap(px, w, h, Bitmap.Config.ARGB_8888)
     }
 
     /** 形の輪郭。size 四方に収まる。 */
@@ -84,4 +131,10 @@ object IconRenderer {
 
     /** スクワークルの指数。5 で iOS や One UI に近い。 */
     const val SQUIRCLE_EXPONENT = 5f
+
+    /** 減色したときの階調の数。4 でゲーム機の画面に近い。 */
+    private const val QUANTIZE_LEVELS = 4
+
+    /** 一色に染めたときの、いちばん暗い画素の濃さ。0 にすると黒く潰れる。 */
+    private const val TINT_FLOOR = 0.35f
 }
