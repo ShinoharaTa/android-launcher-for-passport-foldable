@@ -16,10 +16,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
 import androidx.compose.ui.Alignment
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -62,21 +62,28 @@ object UsageWidget {
         }.flowOn(Dispatchers.IO)
     }
 
-    private val bars = WidgetRenderer<State> { state, _, modifier ->
+    /** 権限が無いときは許可画面への導線を出す。両レンダラで共通。 */
+    @Composable
+    private fun PermissionPrompt(modifier: Modifier, mono: Boolean) {
         val theme = LocalLauncherTheme.current
         val context = LocalContext.current
+        Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(
+                text = if (mono) "GRANT USAGE ACCESS →" else "使用状況へのアクセスを許可",
+                color = theme.colors.accent,
+                fontFamily = if (mono) theme.monoFont else theme.uiFont,
+                fontSize = 12.sp,
+                modifier = Modifier.pointerInput(Unit) {
+                    detectTapGestures { context.startActivity(UsageRepository(context).settingsIntent()) }
+                },
+            )
+        }
+    }
+
+    private val bars = WidgetRenderer<State> { state, _, modifier ->
+        val theme = LocalLauncherTheme.current
         if (!state.permitted) {
-            Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(
-                    text = "GRANT USAGE ACCESS →",
-                    color = theme.colors.accent,
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 11.sp,
-                    modifier = Modifier.pointerInput(Unit) {
-                        detectTapGestures { context.startActivity(UsageRepository(context).settingsIntent()) }
-                    },
-                )
-            }
+            PermissionPrompt(modifier, mono = true)
             return@WidgetRenderer
         }
         val max = state.entries.maxOfOrNull { it.launches }?.coerceAtLeast(1) ?: 1
@@ -86,7 +93,7 @@ object UsageWidget {
                     Text(
                         text = entry.label.uppercase(),
                         color = theme.colors.text,
-                        fontFamily = FontFamily.Monospace,
+                        fontFamily = theme.monoFont,
                         fontSize = 9.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -103,7 +110,7 @@ object UsageWidget {
                     Text(
                         text = "${entry.launches}",
                         color = theme.colors.textDim,
-                        fontFamily = FontFamily.Monospace,
+                        fontFamily = theme.monoFont,
                         fontSize = 9.sp,
                         modifier = Modifier.padding(start = 6.dp).width(28.dp),
                     )
@@ -112,5 +119,31 @@ object UsageWidget {
         }
     }
 
-    val widget = NativeWidget(spec, source, mapOf(NativeWidget.DEFAULT_VARIANT to bars))
+    /** ミニマル。バーを引かず、順位と回数だけを並べる。 */
+    private val list = WidgetRenderer<State> { state, _, modifier ->
+        val theme = LocalLauncherTheme.current
+        if (!state.permitted) {
+            PermissionPrompt(modifier, mono = false)
+            return@WidgetRenderer
+        }
+        Column(modifier = modifier.fillMaxSize(), verticalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceEvenly) {
+            state.entries.forEachIndexed { index, entry ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("${index + 1}", color = theme.colors.textDim, fontFamily = theme.uiFont, fontSize = 11.sp, modifier = Modifier.width(20.dp))
+                    Text(
+                        text = entry.label,
+                        color = theme.colors.text,
+                        fontFamily = theme.uiFont,
+                        fontSize = 13.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text("${entry.launches}", color = theme.colors.textDim, fontFamily = theme.uiFont, fontSize = 12.sp)
+                }
+            }
+        }
+    }
+
+    val widget = NativeWidget(spec, source, mapOf(NativeWidget.DEFAULT_VARIANT to bars, "plain" to list))
 }

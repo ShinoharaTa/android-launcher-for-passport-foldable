@@ -29,7 +29,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import net.shino3.gzf8launcher.data.AppEntry
@@ -81,24 +80,24 @@ fun AppDrawer(
                 modifier = Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(10.dp))
-                    .border(1.dp, theme.colors.line, RoundedCornerShape(10.dp))
+                    .border(1.dp, theme.outline, RoundedCornerShape(10.dp))
                     .padding(horizontal = 12.dp, vertical = 10.dp),
             ) {
                 if (query.isEmpty()) {
-                    Text("SEARCH // ${apps.size} APPS", color = theme.colors.textDim, fontFamily = FontFamily.Monospace, fontSize = 12.sp)
+                    Text("SEARCH // ${apps.size} APPS", color = theme.colors.textDim, fontFamily = theme.monoFont, fontSize = 12.sp)
                 }
                 BasicTextField(
                     value = query,
                     onValueChange = { query = it },
                     singleLine = true,
-                    textStyle = TextStyle(color = theme.colors.text, fontFamily = FontFamily.Monospace, fontSize = 13.sp),
+                    textStyle = TextStyle(color = theme.colors.text, fontFamily = theme.monoFont, fontSize = 13.sp),
                     cursorBrush = SolidColor(theme.colors.accent),
                 )
             }
             Text(
                 text = "CLOSE",
                 color = theme.colors.accent,
-                fontFamily = FontFamily.Monospace,
+                fontFamily = theme.monoFont,
                 fontSize = 12.sp,
                 modifier = Modifier
                     .padding(start = 12.dp)
@@ -110,7 +109,7 @@ fun AppDrawer(
                 Text(
                     text = t.name,
                     color = if (tab == t) theme.colors.accent else theme.colors.textDim,
-                    fontFamily = FontFamily.Monospace,
+                    fontFamily = theme.monoFont,
                     fontSize = 11.sp,
                     modifier = Modifier
                         .padding(end = 16.dp)
@@ -159,12 +158,12 @@ private fun WidgetList(widgets: List<NativeWidget<*>>, providers: List<AppWidget
                 modifier = Modifier
                     .padding(6.dp)
                     .clip(RoundedCornerShape(10.dp))
-                    .border(1.dp, theme.colors.line, RoundedCornerShape(10.dp))
+                    .border(1.dp, theme.outline, RoundedCornerShape(10.dp))
                     .dragSource(DragPayload(AppWidgetItem(info.provider.flattenToString()), null, null, label, w, h))
                     .padding(12.dp),
             ) {
-                Text(label, color = theme.colors.text, fontFamily = FontFamily.Monospace, fontSize = 12.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                Text("$appLabel  //  $w x $h", color = theme.colors.textDim, fontFamily = FontFamily.Monospace, fontSize = 10.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                Text(label, color = theme.colors.text, fontFamily = theme.monoFont, fontSize = 12.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                Text("$appLabel  //  $w x $h", color = theme.colors.textDim, fontFamily = theme.monoFont, fontSize = 10.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
             }
         }
         items(widgets, key = { it.spec.id }) { widget ->
@@ -173,15 +172,15 @@ private fun WidgetList(widgets: List<NativeWidget<*>>, providers: List<AppWidget
                 modifier = Modifier
                     .padding(6.dp)
                     .clip(RoundedCornerShape(10.dp))
-                    .border(1.dp, theme.colors.line, RoundedCornerShape(10.dp))
+                    .border(1.dp, theme.outline, RoundedCornerShape(10.dp))
                     .dragSource(DragPayload(NativeWidgetItem(spec.id), null, null, spec.name, spec.defaultW, spec.defaultH))
                     .padding(12.dp),
             ) {
-                Text(spec.name, color = theme.colors.accent, fontFamily = FontFamily.Monospace, fontSize = 12.sp)
+                Text(spec.name, color = theme.colors.accent, fontFamily = theme.monoFont, fontSize = 12.sp)
                 Text(
                     text = "${spec.defaultW} x ${spec.defaultH}  (${spec.minW}-${spec.maxW} x ${spec.minH}-${spec.maxH})",
                     color = theme.colors.textDim,
-                    fontFamily = FontFamily.Monospace,
+                    fontFamily = theme.monoFont,
                     fontSize = 10.sp,
                 )
             }

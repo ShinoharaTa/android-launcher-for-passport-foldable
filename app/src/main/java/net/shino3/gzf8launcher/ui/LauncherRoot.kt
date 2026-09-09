@@ -1,8 +1,11 @@
 package net.shino3.gzf8launcher.ui
 
+import android.app.Activity
+import android.view.WindowManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,11 +28,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import net.shino3.gzf8launcher.data.AppEntry
 import net.shino3.gzf8launcher.data.LauncherController
@@ -37,6 +41,7 @@ import net.shino3.gzf8launcher.model.AppKey
 import net.shino3.gzf8launcher.model.ItemRef
 import net.shino3.gzf8launcher.model.Layout
 import net.shino3.gzf8launcher.model.ZoneId
+import net.shino3.gzf8launcher.theme.LauncherTheme
 import net.shino3.gzf8launcher.theme.LocalLauncherTheme
 import net.shino3.gzf8launcher.ui.drag.DragController
 import net.shino3.gzf8launcher.ui.drag.DragGhost
@@ -50,6 +55,8 @@ import net.shino3.gzf8launcher.widget.WidgetRegistry
 /** ホームの上に重ねるもの。同時に一つだけ。 */
 sealed interface Overlay {
     data object Drawer : Overlay
+    data object Settings : Overlay
+    data object Home : Overlay
     data class Folder(val ref: ItemRef) : Overlay
     data class Menu(val payload: DragPayload) : Overlay
 }
@@ -57,14 +64,24 @@ sealed interface Overlay {
 /** どの面を出すかを実寸 dp で決め(docs/01)、共通のドック、重ね描き、ドラッグを持つ。 */
 @Composable
 fun LauncherRoot(controller: LauncherController) {
-    val theme = LocalLauncherTheme.current
+    val theme by controller.theme.collectAsStateWithLifecycle()
+    CompositionLocalProvider(LocalLauncherTheme provides theme) {
+        LauncherContent(controller, theme)
+    }
+}
+
+@Composable
+private fun LauncherContent(controller: LauncherController, theme: LauncherTheme) {
     val apps by controller.apps.collectAsStateWithLifecycle()
     val layout by controller.layout.collectAsStateWithLifecycle()
     val usagePermitted by controller.usagePermitted.collectAsStateWithLifecycle()
+    val themes by controller.themes.collectAsStateWithLifecycle()
     var overlay by remember { mutableStateOf<Overlay?>(null) }
     val density = LocalDensity.current
 
-    val drag = remember(controller) {
+    ApplyWindowAppearance(theme)
+
+    val drag = remember(controller, theme.columns, theme.dockSlots) {
         DragController(
             slopPx = with(density) { 12.dp.toPx() },
             onDrop = { session, target ->
@@ -89,17 +106,22 @@ fun LauncherRoot(controller: LauncherController) {
     val widthDp = with(density) { containerSize.width.toDp() }
     val isCover = widthDp < 600.dp
     val swipeThreshold = with(density) { 80.dp.toPx() }
-
     val gridWidthPx = (containerSize.width / (if (isCover) 1 else 2)) - with(density) { 16.dp.toPx() }
     val cellPx = gridWidthPx / theme.columns
 
     CompositionLocalProvider(LocalDragController provides drag, LocalAppWidgetHost provides controller.appWidgets) {
-        Box(modifier = Modifier.fillMaxSize().background(theme.colors.panel)) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(theme.colors.panel)
+                .then(theme.gradient?.let { Modifier.background(it) } ?: Modifier),
+        ) {
             Column(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .swipeUp(swipeThreshold) { overlay = Overlay.Drawer },
+                        .swipeUp(swipeThreshold) { overlay = Overlay.Drawer }
+                        .pointerInput(Unit) { detectTapGestures(onLongPress = { overlay = Overlay.Home }) },
                 ) {
                     if (isCover) {
                         CoverSurface(layout, apps, actions)
@@ -109,6 +131,8 @@ fun LauncherRoot(controller: LauncherController) {
                 }
                 Dock(layout.dock, apps, actions, Modifier.swipeUp(swipeThreshold) { overlay = Overlay.Drawer })
             }
+
+            if (theme.decor.scanlines) Scanlines(theme.colors.line.copy(alpha = 0.06f))
 
             val session = drag.session
             if (session != null) {
@@ -125,6 +149,17 @@ fun LauncherRoot(controller: LauncherController) {
                     cellPx = cellPx,
                     onLaunch = { controller.launch(it); overlay = null },
                     onClose = { overlay = null },
+                )
+                Overlay.Settings -> SettingsScreen(
+                    themes = themes,
+                    currentThemeId = theme.id,
+                    onApplyTheme = { controller.applyTheme(it) },
+                    onClose = { overlay = null },
+                )
+                Overlay.Home -> HomeMenu(
+                    onOpenSettings = { overlay = Overlay.Settings },
+                    onOpenDrawer = { overlay = Overlay.Drawer },
+                    onDismiss = { overlay = null },
                 )
                 is Overlay.Folder -> FolderPopup(
                     folderRef = current.ref,
@@ -150,6 +185,27 @@ fun LauncherRoot(controller: LauncherController) {
                 null -> Unit
             }
             if (session != null) DragGhost(session)
+        }
+    }
+}
+
+/**
+ * ウィンドウ側の見た目をテーマに合わせる。
+ * 明るいテーマではステータスバーのアイコンを黒にし、壁紙を使わないテーマでは壁紙の描画を止める。
+ */
+@Composable
+private fun ApplyWindowAppearance(theme: LauncherTheme) {
+    val context = LocalContext.current
+    LaunchedEffect(theme.light, theme.showWallpaper, context) {
+        val window = (context as? Activity)?.window ?: return@LaunchedEffect
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            isAppearanceLightStatusBars = theme.light
+            isAppearanceLightNavigationBars = theme.light
+        }
+        if (theme.showWallpaper) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WALLPAPER)
+        } else {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_SHOW_WALLPAPER)
         }
     }
 }
@@ -181,7 +237,7 @@ private fun RemoveBar() {
             .dropTarget("remove") { DropTarget.Remove(it) },
         contentAlignment = Alignment.Center,
     ) {
-        Text("DROP HERE TO REMOVE", color = theme.colors.accent, fontFamily = FontFamily.Monospace, fontSize = 12.sp)
+        Text("DROP HERE TO REMOVE", color = theme.colors.accent, fontFamily = theme.monoFont, fontSize = 12.sp)
     }
 }
 
@@ -201,7 +257,7 @@ fun CoverSurface(
 
 /**
  * メイン画面(開)。右をアンカー(カバー面の参照)、左を拡張パネルにする(docs/03)。
- * アンカーの左右切り替えはテーマに載せるまで右固定。
+ * アンカーの左右切り替えは #3 で扱う。
  */
 @Composable
 fun MainSurface(
@@ -218,7 +274,9 @@ fun MainSurface(
                 ItemView(placed.item, ItemRef.Grid(ZoneId.EXTENSION, index), apps, actions, w = placed.w, h = placed.h)
             }
         }
-        Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(theme.colors.line))
+        if (theme.decor.hingeMarker) {
+            Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(theme.colors.line))
+        }
         Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
             ZoneHeader("PRIMARY // SYNC:COVER")
             HomeGrid(layout.cover, ZoneId.COVER, theme.columns, Modifier.weight(1f).padding(horizontal = 8.dp)) { index, placed ->
@@ -231,10 +289,11 @@ fun MainSurface(
 @Composable
 private fun ZoneHeader(text: String) {
     val theme = LocalLauncherTheme.current
+    if (!theme.decor.zoneHeaders) return
     Text(
         text = text,
         color = theme.colors.textDim,
-        fontFamily = FontFamily.Monospace,
+        fontFamily = theme.monoFont,
         fontSize = 10.sp,
         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
     )

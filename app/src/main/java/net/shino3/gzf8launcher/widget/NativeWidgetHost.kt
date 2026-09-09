@@ -14,13 +14,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.serialization.json.JsonObject
 import net.shino3.gzf8launcher.model.NativeWidgetItem
 import net.shino3.gzf8launcher.theme.LocalLauncherTheme
+import net.shino3.gzf8launcher.ui.cornerBrackets
 
 /** レイアウト上の NativeWidgetItem を、登録簿の種別で描く。 */
 @Composable
@@ -42,22 +42,23 @@ private fun <T> WidgetContent(widget: NativeWidget<T>, config: JsonObject) {
     renderer.content(current, config, Modifier.fillMaxSize())
 }
 
-/** ウィジェット共通の枠。見出しの有無はテーマで決める。 */
+/** ウィジェット共通の枠。見出しと装飾の有無はテーマで決める。 */
 @Composable
 fun WidgetFrame(caption: String, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     val theme = LocalLauncherTheme.current
-    val shape = RoundedCornerShape(10.dp)
+    val shape = RoundedCornerShape(theme.moduleRadius)
     Column(
         modifier = modifier
             .fillMaxSize()
             .padding(4.dp)
             .clip(shape)
-            .background(theme.colors.widget)
-            .border(1.dp, theme.colors.line, shape)
+            .background(theme.colors.module)
+            .border(1.dp, theme.outline, shape)
+            .then(if (theme.decor.cornerBrackets) Modifier.cornerBrackets(theme.colors.accent) else Modifier)
             .padding(horizontal = 10.dp, vertical = 6.dp),
     ) {
         if (theme.widgetHeaders) {
-            Text(caption, color = theme.colors.textDim, fontFamily = FontFamily.Monospace, fontSize = 9.sp)
+            Text(caption, color = theme.colors.textDim, fontFamily = theme.monoFont, fontSize = 9.sp)
         }
         Box(modifier = Modifier.fillMaxSize()) { content() }
     }

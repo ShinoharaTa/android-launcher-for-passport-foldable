@@ -1,6 +1,7 @@
 package net.shino3.gzf8launcher.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -34,8 +35,9 @@ fun Dock(
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 8.dp)
             .height(76.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .background(theme.colors.folder)
+            .clip(RoundedCornerShape(theme.moduleRadius + 8.dp))
+            .background(theme.colors.dock)
+            .border(1.dp, theme.outline, RoundedCornerShape(theme.moduleRadius + 8.dp))
             .dropTarget("dock") { DropTarget.Dock(it, theme.dockSlots) },
     ) {
         repeat(theme.dockSlots) { slot ->

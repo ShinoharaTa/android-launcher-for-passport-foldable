@@ -10,7 +10,6 @@ import androidx.compose.material3.Text
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalWindowInfo
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
 import androidx.window.layout.FoldingFeature
@@ -50,7 +49,7 @@ object MetricsWidget {
         )
         Column(modifier = modifier.fillMaxSize()) {
             texts.forEach {
-                Text(it, color = theme.colors.textDim, fontFamily = FontFamily.Monospace, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(it, color = theme.colors.textDim, fontFamily = theme.monoFont, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
     }

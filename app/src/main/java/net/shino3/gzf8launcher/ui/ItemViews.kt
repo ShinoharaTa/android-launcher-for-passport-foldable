@@ -11,13 +11,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -30,6 +31,7 @@ import net.shino3.gzf8launcher.model.FolderItem
 import net.shino3.gzf8launcher.model.Item
 import net.shino3.gzf8launcher.model.ItemRef
 import net.shino3.gzf8launcher.model.NativeWidgetItem
+import net.shino3.gzf8launcher.theme.IconShape
 import net.shino3.gzf8launcher.theme.LocalLauncherTheme
 import net.shino3.gzf8launcher.ui.drag.DragPayload
 import net.shino3.gzf8launcher.ui.drag.dragSource
@@ -45,6 +47,14 @@ class ItemActions(
 )
 
 fun AppItem.fallbackLabel(): String = component.substringBefore('/').substringAfterLast('.')
+
+/** テーマが指定するアイコンの形。SYSTEM はアプリが持つ形をそのまま出す。 */
+@Composable
+private fun iconShape(): Shape? = when (LocalLauncherTheme.current.iconShape) {
+    IconShape.SYSTEM -> null
+    IconShape.CIRCLE -> CircleShape
+    IconShape.SQUIRCLE -> RoundedCornerShape(28)
+}
 
 /** 種類で描画を振り分け、長押しドラッグを付ける。 */
 @Composable
@@ -100,6 +110,7 @@ fun AppCell(
     modifier: Modifier = Modifier,
 ) {
     val theme = LocalLauncherTheme.current
+    val shape = iconShape()
     BoxWithConstraints(
         modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.Center,
@@ -107,23 +118,30 @@ fun AppCell(
         val iconSize = minOf(maxWidth, maxHeight) * theme.iconScale
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             if (entry != null) {
-                Image(bitmap = entry.icon, contentDescription = entry.label, modifier = Modifier.size(iconSize))
+                Image(
+                    bitmap = entry.icon,
+                    contentDescription = entry.label,
+                    modifier = Modifier
+                        .size(iconSize)
+                        .then(if (shape != null) Modifier.clip(shape) else Modifier),
+                )
             } else {
                 // 未インストールのアプリ。JSON の書き間違いを見つけられるように場所を空けたまま印を出す
                 Box(
                     modifier = Modifier
                         .size(iconSize)
-                        .clip(RoundedCornerShape(22))
-                        .border(1.dp, theme.colors.line, RoundedCornerShape(22)),
+                        .clip(shape ?: RoundedCornerShape(22))
+                        .border(1.dp, theme.colors.line, shape ?: RoundedCornerShape(22)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text("?", color = theme.colors.textDim, fontFamily = FontFamily.Monospace, fontSize = 14.sp)
+                    Text("?", color = theme.colors.textDim, fontFamily = theme.monoFont, fontSize = 14.sp)
                 }
             }
             if (showLabel) {
                 Text(
                     text = entry?.label ?: fallback,
                     color = theme.colors.text,
+                    fontFamily = theme.uiFont,
                     fontSize = 11.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -144,14 +162,16 @@ fun FolderCell(
     modifier: Modifier = Modifier,
 ) {
     val theme = LocalLauncherTheme.current
-    val shape = RoundedCornerShape(14.dp)
+    val shape = RoundedCornerShape(theme.moduleRadius)
+    val iconShape = iconShape()
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .padding(4.dp)
             .clip(shape)
-            .background(theme.colors.folder)
-            .border(1.dp, theme.colors.line, shape)
+            .background(theme.colors.dock)
+            .border(1.dp, theme.outline, shape)
+            .then(if (theme.decor.cornerBrackets) Modifier.cornerBrackets(theme.colors.accent) else Modifier)
             .padding(6.dp),
     ) {
         val cols = theme.folderColumns
@@ -160,7 +180,7 @@ fun FolderCell(
             Text(
                 text = folder.name,
                 color = theme.colors.accent,
-                fontFamily = FontFamily.Monospace,
+                fontFamily = theme.monoFont,
                 fontSize = 9.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -171,12 +191,18 @@ fun FolderCell(
                         Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
                             val entry = apps[app.key]
                             if (entry != null) {
-                                Image(bitmap = entry.icon, contentDescription = entry.label, modifier = Modifier.size(miniSize))
+                                Image(
+                                    bitmap = entry.icon,
+                                    contentDescription = entry.label,
+                                    modifier = Modifier
+                                        .size(miniSize)
+                                        .then(if (iconShape != null) Modifier.clip(iconShape) else Modifier),
+                                )
                             } else {
                                 Box(
                                     modifier = Modifier
                                         .size(miniSize)
-                                        .border(1.dp, theme.colors.line, RoundedCornerShape(22)),
+                                        .border(1.dp, theme.colors.line, iconShape ?: RoundedCornerShape(22)),
                                 )
                             }
                         }
@@ -188,11 +214,11 @@ fun FolderCell(
     }
 }
 
-/** ウィジェット基盤ができるまでの仮表示。 */
+/** ウィジェットが解決できないときの仮表示。 */
 @Composable
 fun WidgetPlaceholder(caption: String, modifier: Modifier = Modifier) {
     val theme = LocalLauncherTheme.current
-    val shape = RoundedCornerShape(10.dp)
+    val shape = RoundedCornerShape(theme.moduleRadius)
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -202,6 +228,6 @@ fun WidgetPlaceholder(caption: String, modifier: Modifier = Modifier) {
             .padding(8.dp),
         contentAlignment = Alignment.TopStart,
     ) {
-        Text(caption, color = theme.colors.textDim, fontFamily = FontFamily.Monospace, fontSize = 10.sp)
+        Text(caption, color = theme.colors.textDim, fontFamily = theme.monoFont, fontSize = 10.sp)
     }
 }

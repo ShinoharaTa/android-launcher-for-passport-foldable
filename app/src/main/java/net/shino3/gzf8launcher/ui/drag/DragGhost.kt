@@ -14,7 +14,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -45,7 +44,7 @@ fun DragGhost(session: DragSession) {
                     .padding(4.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(session.payload.label, color = theme.colors.accent, fontFamily = FontFamily.Monospace, fontSize = 9.sp, maxLines = 2)
+                Text(session.payload.label, color = theme.colors.accent, fontFamily = theme.monoFont, fontSize = 9.sp, maxLines = 2)
             }
         }
     }

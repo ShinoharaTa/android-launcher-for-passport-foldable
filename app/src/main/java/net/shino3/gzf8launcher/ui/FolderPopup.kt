@@ -28,7 +28,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import net.shino3.gzf8launcher.data.AppEntry
@@ -62,7 +61,7 @@ fun FolderPopup(
     LaunchedEffect(folder == null) { if (folder == null) onDismiss() }
     if (folder == null) return
     val members = actions.resolveFolder(folder)
-    val shape = RoundedCornerShape(18.dp)
+    val shape = RoundedCornerShape(theme.moduleRadius + 6.dp)
 
     Overlay(hidden = hidden, onDismiss = onDismiss) {
         Column(
@@ -71,16 +70,16 @@ fun FolderPopup(
                 .widthIn(max = 440.dp)
                 .clip(shape)
                 .background(theme.colors.surface)
-                .border(1.dp, theme.colors.line, shape)
+                .border(1.dp, theme.outline, shape)
                 .padding(16.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("FOLDER // ", color = theme.colors.accent, fontFamily = FontFamily.Monospace, fontSize = 12.sp)
+                Text("FOLDER // ", color = theme.colors.accent, fontFamily = theme.monoFont, fontSize = 12.sp)
                 BasicTextField(
                     value = folder.name,
                     onValueChange = onRename,
                     singleLine = true,
-                    textStyle = TextStyle(color = theme.colors.accent, fontFamily = FontFamily.Monospace, fontSize = 12.sp),
+                    textStyle = TextStyle(color = theme.colors.accent, fontFamily = theme.monoFont, fontSize = 12.sp),
                     cursorBrush = SolidColor(theme.colors.accent),
                     modifier = Modifier.weight(1f),
                 )
@@ -90,6 +89,7 @@ fun FolderPopup(
                 Text(
                     text = "使用状況へのアクセスを許可する →",
                     color = theme.colors.accent,
+                    fontFamily = theme.uiFont,
                     fontSize = 13.sp,
                     modifier = Modifier
                         .padding(vertical = 12.dp)
@@ -134,7 +134,7 @@ private fun RuleSelector(current: FolderRule, onChange: (FolderRule) -> Unit) {
             Text(
                 text = label,
                 color = if (selected) theme.colors.surface else theme.colors.textDim,
-                fontFamily = FontFamily.Monospace,
+                fontFamily = theme.monoFont,
                 fontSize = 9.sp,
                 modifier = Modifier
                     .padding(end = 4.dp)
@@ -151,11 +151,12 @@ private fun RuleSelector(current: FolderRule, onChange: (FolderRule) -> Unit) {
 /** 画面全体を覆う重ね描き。外側のタップで閉じる。hidden のあいだは見えないが合成には残る(ドラッグ継続のため)。 */
 @Composable
 fun Overlay(hidden: Boolean, onDismiss: () -> Unit, content: @Composable () -> Unit) {
+    val scrim = if (LocalLauncherTheme.current.light) Color(0x99FFFFFF) else Color(0x99000000)
     Box(
         modifier = Modifier
             .fillMaxSize()
             .alpha(if (hidden) 0f else 1f)
-            .background(Color(0x99000000))
+            .background(scrim)
             .pointerInput(Unit) { detectTapGestures { onDismiss() } },
         contentAlignment = Alignment.Center,
     ) {
