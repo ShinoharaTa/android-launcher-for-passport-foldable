@@ -20,7 +20,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.serialization.json.JsonObject
 import net.shino3.gzf8launcher.model.NativeWidgetItem
 import net.shino3.gzf8launcher.theme.LocalLauncherTheme
-import net.shino3.gzf8launcher.ui.cornerBrackets
 
 /** レイアウト上の NativeWidgetItem を、登録簿の種別で描く。 */
 @Composable
@@ -28,6 +27,17 @@ fun NativeWidgetHost(item: NativeWidgetItem, modifier: Modifier = Modifier) {
     val widget = WidgetRegistry.get(item.widget)
     WidgetFrame(caption = widget?.spec?.name ?: "UNKNOWN // ${item.widget}", modifier = modifier) {
         if (widget != null) WidgetContent(widget, item.config)
+    }
+}
+
+/**
+ * ウィジェット選択に出すプレビュー(#32)。置いたときと同じ枠と描画で、実際のデータを流す。
+ * 大きさは呼び出し側が既定サイズの比で決める。
+ */
+@Composable
+fun NativeWidgetPreview(widget: NativeWidget<*>, modifier: Modifier = Modifier) {
+    WidgetFrame(caption = widget.spec.name, modifier = modifier) {
+        WidgetContent(widget, JsonObject(emptyMap()))
     }
 }
 
@@ -54,7 +64,6 @@ fun WidgetFrame(caption: String, modifier: Modifier = Modifier, content: @Compos
             .clip(shape)
             .background(theme.colors.module)
             .border(1.dp, theme.outline, shape)
-            .then(if (theme.decor.cornerBrackets) Modifier.cornerBrackets(theme.colors.accent) else Modifier)
             .padding(horizontal = 10.dp, vertical = 6.dp),
     ) {
         if (theme.widgetHeaders) {

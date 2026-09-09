@@ -2,6 +2,7 @@ package net.shino3.gzf8launcher.theme
 
 import android.content.Context
 import android.util.Log
+import androidx.core.content.edit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,11 +15,16 @@ import java.io.File
  * テーマを切り替えても配置は巻き戻らない(docs/04)。
  *
  * 内部ストレージの theme.json が現在のテーマ。無ければ同梱プリセットの先頭。
+ * 設定画面からの上書き(書体、アイコンの形)は SharedPreferences に持ち、テーマの上に重ねる(#32)。
  */
 class ThemeRepository(private val context: Context) {
     private val file = File(context.filesDir, FILE_NAME)
+    private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    private var spec: ThemeSpec? = null
     private val _theme = MutableStateFlow(LauncherTheme())
     val theme: StateFlow<LauncherTheme> = _theme
+    private val _overrides = MutableStateFlow(readOverrides())
+    val overrides: StateFlow<ThemeOverrides> = _overrides
 
     /** 同梱テーマ。設定画面の一覧に出す。 */
     suspend fun bundled(): List<ThemeSpec> = withContext(Dispatchers.IO) {
@@ -31,17 +37,41 @@ class ThemeRepository(private val context: Context) {
     }
 
     suspend fun load() {
-        val spec = withContext(Dispatchers.IO) {
+        val loaded = withContext(Dispatchers.IO) {
             val saved = if (file.exists()) parse(file.readText(), file.path) else null
             saved ?: readAsset("$ASSET_DIR/$DEFAULT_ASSET")
         }
-        if (spec != null) _theme.value = spec.toTheme()
+        if (loaded != null) {
+            spec = loaded
+            publish()
+        }
     }
 
     suspend fun apply(spec: ThemeSpec) {
-        _theme.value = spec.toTheme()
+        this.spec = spec
+        publish()
         withContext(Dispatchers.IO) { file.writeText(json.encodeToString(spec)) }
     }
+
+    fun setOverrides(overrides: ThemeOverrides) {
+        _overrides.value = overrides
+        prefs.edit {
+            putString(KEY_FONT, overrides.font.name)
+            putString(KEY_ICON_SHAPE, overrides.iconShape?.name ?: "")
+        }
+        publish()
+    }
+
+    private fun publish() {
+        val current = spec ?: return
+        _theme.value = current.toTheme(_overrides.value)
+    }
+
+    private fun readOverrides(): ThemeOverrides = ThemeOverrides(
+        font = prefs.getString(KEY_FONT, null)?.let { name -> FontChoice.entries.firstOrNull { it.name == name } }
+            ?: FontChoice.THEME,
+        iconShape = prefs.getString(KEY_ICON_SHAPE, null)?.let { name -> IconShape.entries.firstOrNull { it.name == name } },
+    )
 
     private fun readAsset(path: String): ThemeSpec? =
         runCatching { context.assets.open(path).bufferedReader().use { it.readText() } }
@@ -58,6 +88,9 @@ class ThemeRepository(private val context: Context) {
         private const val FILE_NAME = "theme.json"
         private const val ASSET_DIR = "themes"
         private const val DEFAULT_ASSET = "amber-terminal.json"
+        private const val PREFS_NAME = "settings"
+        private const val KEY_FONT = "font"
+        private const val KEY_ICON_SHAPE = "iconShape"
 
         val json = Json {
             ignoreUnknownKeys = true

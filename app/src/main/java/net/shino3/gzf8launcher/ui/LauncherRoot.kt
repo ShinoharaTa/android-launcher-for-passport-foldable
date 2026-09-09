@@ -103,6 +103,7 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
     val usagePermitted by controller.usagePermitted.collectAsStateWithLifecycle()
     val usage by controller.usage.collectAsStateWithLifecycle()
     val themes by controller.themes.collectAsStateWithLifecycle()
+    val overrides by controller.overrides.collectAsStateWithLifecycle()
     var overlay by remember { mutableStateOf<Overlay?>(null) }
     // 閉じる動きを見せるため、消えたあとも終わるまで描き続ける
     var rendered by remember { mutableStateOf<Overlay?>(null) }
@@ -297,7 +298,10 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
                 is Overlay.Settings -> SettingsScreen(
                     themes = themes,
                     currentThemeId = theme.id,
+                    overrides = overrides,
                     onApplyTheme = { controller.applyTheme(it) },
+                    onFont = { controller.setFont(it) },
+                    onIconShape = { controller.setIconShape(it) },
                     onClose = { overlay = null },
                 )
                 is Overlay.Home -> HomeMenu(

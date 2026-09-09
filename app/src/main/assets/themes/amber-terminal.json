@@ -24,12 +24,11 @@
     "variants": {}
   },
   "decor": {
-    "cornerBrackets": true,
     "scanlines": true,
     "zoneHeaders": true,
     "hingeMarker": true,
     "outlines": true,
     "pageIndicator": true
   },
-  "typography": { "ui": "mono", "mono": "mono" }
+  "typography": { "ui": "default", "mono": "mono" }
 }

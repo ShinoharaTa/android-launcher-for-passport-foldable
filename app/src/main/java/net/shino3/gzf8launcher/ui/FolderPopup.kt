@@ -68,11 +68,12 @@ fun FolderPopup(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
                 Text("FOLDER // ", color = theme.colors.accent, fontFamily = theme.monoFont, fontSize = 12.sp)
+                // 名前は利用者が付けるので日本語が入る。UI 書体で描く(#32)
                 BasicTextField(
                     value = folder.name,
                     onValueChange = onRename,
                     singleLine = true,
-                    textStyle = TextStyle(color = theme.colors.accent, fontFamily = theme.monoFont, fontSize = 12.sp),
+                    textStyle = TextStyle(color = theme.colors.accent, fontFamily = theme.uiFont, fontSize = 14.sp),
                     cursorBrush = SolidColor(theme.colors.accent),
                     modifier = Modifier.weight(1f),
                 )

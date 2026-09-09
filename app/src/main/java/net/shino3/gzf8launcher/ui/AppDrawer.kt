@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -46,7 +47,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
@@ -287,11 +287,12 @@ private fun SearchField(
             if (query.isEmpty()) {
                 Text("SEARCH // $count APPS", color = theme.colors.textDim, fontFamily = theme.monoFont, fontSize = 12.sp)
             }
+            // 入力は日本語も入るので UI 書体(#32)
             BasicTextField(
                 value = query,
                 onValueChange = onQueryChange,
                 singleLine = true,
-                textStyle = TextStyle(color = theme.colors.text, fontFamily = theme.monoFont, fontSize = 13.sp),
+                textStyle = TextStyle(color = theme.colors.text, fontFamily = theme.uiFont, fontSize = 14.sp),
                 cursorBrush = SolidColor(theme.colors.accent),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
                 keyboardActions = KeyboardActions(onGo = { onSubmit() }),
@@ -299,23 +300,14 @@ private fun SearchField(
             )
         }
         if (query.isNotEmpty()) {
-            Text(
-                text = "CLEAR",
-                color = theme.colors.accent,
-                fontFamily = theme.monoFont,
-                fontSize = 11.sp,
-                modifier = Modifier
-                    .padding(start = 12.dp)
-                    .pointerInput(Unit) { detectTapGestures { onQueryChange("") } },
-            )
+            TextAction("CLEAR", modifier = Modifier.padding(start = 4.dp)) { onQueryChange("") }
         }
     }
 }
 
-/** 絞り込みチップの列。横に流れる。 */
+/** 絞り込みチップの列。横に流れる。押す場所なので 40dp 以上に取る(#32)。 */
 @Composable
 private fun FilterChips(chips: List<DrawerFilter>, selected: DrawerFilter?, onSelect: (DrawerFilter) -> Unit) {
-    val theme = LocalLauncherTheme.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -323,20 +315,7 @@ private fun FilterChips(chips: List<DrawerFilter>, selected: DrawerFilter?, onSe
             .padding(horizontal = 12.dp, vertical = 6.dp),
     ) {
         chips.forEach { chip ->
-            val on = chip == selected
-            Text(
-                text = chip.label,
-                color = if (on) theme.colors.surface else theme.colors.textDim,
-                fontFamily = theme.monoFont,
-                fontSize = 10.sp,
-                modifier = Modifier
-                    .padding(end = 6.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(if (on) theme.colors.accent else Color.Transparent)
-                    .border(1.dp, if (on) theme.colors.accent else theme.colors.line, RoundedCornerShape(8.dp))
-                    .pointerInput(chip) { detectTapGestures { onSelect(chip) } }
-                    .padding(horizontal = 10.dp, vertical = 6.dp),
-            )
+            Chip(label = chip.label, selected = chip == selected, modifier = Modifier.padding(end = 8.dp)) { onSelect(chip) }
         }
     }
 }
@@ -345,14 +324,19 @@ private fun FilterChips(chips: List<DrawerFilter>, selected: DrawerFilter?, onSe
 @Composable
 private fun UsagePermissionRow(onRequest: () -> Unit) {
     val theme = LocalLauncherTheme.current
-    Text(
-        text = "USAGE ACCESS REQUIRED // TAP TO ALLOW",
-        color = theme.colors.accent,
-        fontFamily = theme.monoFont,
-        fontSize = 11.sp,
+    Box(
         modifier = Modifier
             .fillMaxWidth()
+            .defaultMinSize(minHeight = TAP_MIN)
             .pointerInput(Unit) { detectTapGestures { onRequest() } }
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-    )
+            .padding(horizontal = 16.dp),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        Text(
+            text = "USAGE ACCESS REQUIRED // TAP TO ALLOW",
+            color = theme.colors.accent,
+            fontFamily = theme.monoFont,
+            fontSize = 12.sp,
+        )
+    }
 }
