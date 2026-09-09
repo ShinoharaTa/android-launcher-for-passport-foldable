@@ -3,6 +3,9 @@ package net.shino3.gzf8launcher.data
 import android.appwidget.AppWidgetProviderInfo
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.util.Log
 import android.graphics.Rect
 import android.os.Bundle
 import android.os.UserHandle
@@ -128,6 +131,27 @@ class LauncherController(private val context: Context, private val scope: Corout
         val entry = _apps.value[item.key] ?: return
         context.getSystemService(LauncherApps::class.java)
             .startAppDetailsActivity(entry.componentName, entry.user, null, null)
+    }
+
+    /**
+     * アンインストールの確認を出す(#36)。システムアプリは端末側が無効化の確認に置き換える。
+     * 仕事用プロファイルのアプリはそのユーザーで出す。
+     */
+    fun uninstall(item: AppItem) {
+        val entry = _apps.value[item.key] ?: return
+        val intent = Intent(Intent.ACTION_DELETE, Uri.parse("package:${entry.componentName.packageName}"))
+            .putExtra(Intent.EXTRA_USER, entry.user)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        runCatching { context.startActivity(intent) }
+            .onFailure { Log.w(TAG, "アンインストールの確認を出せなかった: ${entry.componentName.packageName}", it) }
+    }
+
+    /** 端末の壁紙の選択を開く(#36)。壁紙アプリが複数あれば選ばせる。 */
+    fun openWallpaperPicker() {
+        val intent = Intent(Intent.ACTION_SET_WALLPAPER)
+        runCatching {
+            context.startActivity(Intent.createChooser(intent, null).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        }
     }
 
     // ---- ショートカット(#11) ----
@@ -308,3 +332,5 @@ class LauncherController(private val context: Context, private val scope: Corout
         _usage.value = withContext(Dispatchers.IO) { usageRepository.query(days = 7) }
     }
 }
+
+private const val TAG = "LauncherController"

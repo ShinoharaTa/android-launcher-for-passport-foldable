@@ -53,6 +53,7 @@ fun ItemMenu(
     shortcuts: List<ShortcutEntry>,
     hidden: Boolean,
     onAppInfo: (AppItem) -> Unit,
+    onUninstall: (AppItem) -> Unit,
     onOpenFolder: (ItemRef) -> Unit,
     onResize: (ItemRef, dw: Int, dh: Int) -> Unit,
     onRemove: (ItemRef) -> Unit,
@@ -96,7 +97,11 @@ fun ItemMenu(
                 )
             }
             when (val item = payload.item) {
-                is AppItem -> MenuRow("APP INFO") { onAppInfo(item); onDismiss() }
+                is AppItem -> {
+                    MenuRow("APP INFO") { onAppInfo(item); onDismiss() }
+                    // 端末の確認ダイアログに任せる。消えたアプリはアプリ一覧の更新でホームからも外れる(#36)
+                    MenuRow("UNINSTALL") { onUninstall(item); onDismiss() }
+                }
                 is FolderItem -> if (ref != null) MenuRow("OPEN / RENAME") { onOpenFolder(ref) }
                 is NativeWidgetItem, is AppWidgetItem -> if (ref != null) {
                     val p = LayoutEditor.placementOf(layout, ref)
@@ -167,7 +172,14 @@ private fun ShortcutRow(entry: ShortcutEntry, onLaunch: (ShortcutItem, Rect) -> 
 
 /** ホームの空き領域を長押ししたときのメニュー。ウィジェットの追加と設定への入口(#25)。 */
 @Composable
-fun HomeMenu(visible: Boolean, source: Rect?, onOpenWidgets: () -> Unit, onOpenSettings: () -> Unit, onDismiss: () -> Unit) {
+fun HomeMenu(
+    visible: Boolean,
+    source: Rect?,
+    onOpenWallpaper: () -> Unit,
+    onOpenWidgets: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onDismiss: () -> Unit,
+) {
     val theme = LocalLauncherTheme.current
     val shape = RoundedCornerShape(theme.moduleRadius + 4.dp)
     OverlayScaffold(visible = visible, source = source, hidden = false, onDismiss = onDismiss) {
@@ -186,7 +198,8 @@ fun HomeMenu(visible: Boolean, source: Rect?, onOpenWidgets: () -> Unit, onOpenS
                 fontSize = 11.sp,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
             )
-            // どちらも別の重ね描きに移る。ここで閉じると移った先まで消えてしまう
+            // 壁紙は端末の画面に移るのでここで閉じる。他の二つは別の重ね描きに移るので閉じない(閉じると移った先まで消える)
+            MenuRow("WALLPAPER") { onOpenWallpaper(); onDismiss() }
             MenuRow("WIDGETS") { onOpenWidgets() }
             MenuRow("SETTINGS") { onOpenSettings() }
         }
