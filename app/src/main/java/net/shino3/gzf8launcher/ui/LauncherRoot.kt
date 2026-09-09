@@ -316,6 +316,7 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
                 is Overlay.Home -> HomeMenu(
                     visible = visible,
                     source = current.source,
+                    onOpenWallpaper = { controller.openWallpaperPicker() },
                     onOpenWidgets = { overlay = Overlay.Widgets(current.source) },
                     onOpenSettings = { overlay = Overlay.Settings(current.source) },
                     onDismiss = { overlay = null },
@@ -348,6 +349,7 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
                     shortcuts = menuShortcuts,
                     hidden = session != null,
                     onAppInfo = { controller.openAppDetails(it) },
+                    onUninstall = { controller.uninstall(it) },
                     onOpenFolder = { overlay = Overlay.Folder(it, current.source) },
                     onResize = { ref, dw, dh -> controller.resize(ref, dw, dh, theme.columns, theme.rows) },
                     onRemove = { controller.remove(it) },
