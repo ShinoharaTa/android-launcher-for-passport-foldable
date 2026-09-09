@@ -14,6 +14,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.material3.Text
 import androidx.compose.ui.Alignment
 import androidx.compose.runtime.Composable
@@ -87,7 +91,7 @@ object UsageWidget {
             return@WidgetRenderer
         }
         val max = state.entries.maxOfOrNull { it.launches }?.coerceAtLeast(1) ?: 1
-        Column(modifier = modifier.fillMaxSize(), verticalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceEvenly) {
+        Column(modifier = modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceEvenly) {
             state.entries.forEach { entry ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -126,7 +130,7 @@ object UsageWidget {
             PermissionPrompt(modifier, mono = false)
             return@WidgetRenderer
         }
-        Column(modifier = modifier.fillMaxSize(), verticalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceEvenly) {
+        Column(modifier = modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceEvenly) {
             state.entries.forEachIndexed { index, entry ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("${index + 1}", color = theme.colors.textDim, fontFamily = theme.uiFont, fontSize = 11.sp, modifier = Modifier.width(20.dp))
@@ -145,5 +149,152 @@ object UsageWidget {
         }
     }
 
-    val widget = NativeWidget(spec, source, mapOf(NativeWidget.DEFAULT_VARIANT to bars, "plain" to list))
+    /** 縦棒。横に並べて波形として読む(#40)。 */
+    private val equalizer = WidgetRenderer<State> { state, _, modifier ->
+        val theme = LocalLauncherTheme.current
+        if (!state.permitted) {
+            PermissionPrompt(modifier, mono = true)
+            return@WidgetRenderer
+        }
+        val max = state.entries.maxOfOrNull { it.launches } ?: 1
+        Row(
+            modifier = modifier.fillMaxSize().padding(vertical = 2.dp),
+            horizontalArrangement = Arrangement.spacedBy(3.dp),
+            verticalAlignment = Alignment.Bottom,
+        ) {
+            state.entries.forEachIndexed { index, entry ->
+                val h = (entry.launches / max.toFloat()).coerceIn(0.08f, 1f)
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(h)
+                        // 上位だけ副色にして、順位を色でも読めるようにする
+                        .background(if (index == 0) theme.colors.alt else theme.colors.accent),
+                )
+            }
+        }
+    }
+
+    /** VU メーター。目盛りを刻んだ帯が右に伸びる(#40)。 */
+    private val vu = WidgetRenderer<State> { state, _, modifier ->
+        val theme = LocalLauncherTheme.current
+        if (!state.permitted) {
+            PermissionPrompt(modifier, mono = false)
+            return@WidgetRenderer
+        }
+        val max = state.entries.maxOfOrNull { it.launches } ?: 1
+        Column(modifier = modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceEvenly) {
+            state.entries.forEach { entry ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = entry.label,
+                        color = theme.colors.textDim,
+                        fontFamily = theme.uiFont,
+                        fontSize = 9.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.width(58.dp),
+                    )
+                    Box(modifier = Modifier.weight(1f).height(7.dp).background(theme.colors.panel)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(entry.launches / max.toFloat()).fillMaxHeight(),
+                            horizontalArrangement = Arrangement.spacedBy(1.dp),
+                        ) {
+                            // 目盛りを刻んだ帯。連続した棒より機械らしく読める
+                            repeat(VU_TICKS) {
+                                Box(modifier = Modifier.width(3.dp).fillMaxHeight().background(theme.colors.accent))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /** 点線リーダー。目次のように、名前と数字を点でつなぐ(#40)。 */
+    private val leader = WidgetRenderer<State> { state, _, modifier ->
+        val theme = LocalLauncherTheme.current
+        if (!state.permitted) {
+            PermissionPrompt(modifier, mono = false)
+            return@WidgetRenderer
+        }
+        Column(modifier = modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceEvenly) {
+            state.entries.forEach { entry ->
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        text = entry.label,
+                        color = theme.colors.text,
+                        fontFamily = theme.uiFont,
+                        fontSize = 12.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 4.dp, vertical = 5.dp)
+                            .height(1.dp)
+                            .drawBehind {
+                                var x = 0f
+                                while (x < size.width) {
+                                    drawRect(theme.colors.line, topLeft = Offset(x, 0f), size = Size(1f, size.height))
+                                    x += LEADER_GAP
+                                }
+                            },
+                    )
+                    Text("${entry.launches}", color = theme.colors.textDim, fontFamily = theme.uiFont, fontSize = 12.sp)
+                }
+            }
+        }
+    }
+
+    /** いちばん静か。棒も線も引かず、名前と回数だけを横に並べる(#40)。 */
+    private val quiet = WidgetRenderer<State> { state, _, modifier ->
+        val theme = LocalLauncherTheme.current
+        if (!state.permitted) {
+            PermissionPrompt(modifier, mono = false)
+            return@WidgetRenderer
+        }
+        Row(
+            modifier = modifier.fillMaxSize(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            state.entries.take(QUIET_COUNT).forEach { entry ->
+                Column {
+                    Text(
+                        text = entry.label,
+                        color = theme.colors.textDim,
+                        fontFamily = theme.uiFont,
+                        fontSize = 10.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text("${entry.launches}", color = theme.colors.text, fontFamily = theme.uiFont, fontSize = 18.sp)
+                }
+            }
+        }
+    }
+
+    /** VU メーターの目盛りの数。帯の長さに関わらず同じ刻みで並べる。 */
+    private const val VU_TICKS = 24
+
+    /** 点線リーダーの点の間隔 px。 */
+    private const val LEADER_GAP = 5f
+
+    /** 静かな表示に出す件数。横に並べるので絞る。 */
+    private const val QUIET_COUNT = 3
+
+    val widget = NativeWidget(
+        spec,
+        source,
+        mapOf(
+            NativeWidget.DEFAULT_VARIANT to bars,
+            "plain" to list,
+            "equalizer" to equalizer,
+            "vu" to vu,
+            "leader" to leader,
+            "quiet" to quiet,
+        ),
+    )
 }

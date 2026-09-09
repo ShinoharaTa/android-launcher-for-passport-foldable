@@ -54,7 +54,7 @@ fun FolderPopup(
     val folder = LayoutEditor.itemAt(layout, folderRef) as? FolderItem
     LaunchedEffect(folder == null) { if (folder == null) onDismiss() }
     if (folder == null) return
-    val shape = RoundedCornerShape(theme.moduleRadius + 6.dp)
+    val shape = theme.shapeOf(theme.moduleRadius + 6.dp)
 
     OverlayScaffold(visible = visible, source = source, hidden = hidden, onDismiss = onDismiss) {
         Column(

@@ -1,18 +1,14 @@
 package net.shino3.gzf8launcher.widget
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -20,6 +16,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.serialization.json.JsonObject
 import net.shino3.gzf8launcher.model.NativeWidgetItem
 import net.shino3.gzf8launcher.theme.LocalLauncherTheme
+import net.shino3.gzf8launcher.ui.moduleSurface
 
 /** レイアウト上の NativeWidgetItem を、登録簿の種別で描く。 */
 @Composable
@@ -56,14 +53,12 @@ private fun <T> WidgetContent(widget: NativeWidget<T>, config: JsonObject) {
 @Composable
 fun WidgetFrame(caption: String, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     val theme = LocalLauncherTheme.current
-    val shape = RoundedCornerShape(theme.moduleRadius)
     Column(
         modifier = modifier
             .fillMaxSize()
             .padding(4.dp)
-            .clip(shape)
-            .background(theme.colors.module)
-            .border(1.dp, theme.outline, shape)
+            // 形、枠の太さ、影、すりガラスはテーマが決める(#40)
+            .moduleSurface()
             .padding(horizontal = 10.dp, vertical = 6.dp),
     ) {
         if (theme.widgetHeaders) {

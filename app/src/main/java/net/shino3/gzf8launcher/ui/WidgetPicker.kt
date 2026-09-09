@@ -67,7 +67,7 @@ fun WidgetPicker(
     val context = LocalContext.current
     val pm = context.packageManager
     val sorted = remember(providers) { providers.sortedBy { it.loadLabel(pm).lowercase() } }
-    val shape = RoundedCornerShape(theme.moduleRadius + 6.dp)
+    val shape = theme.shapeOf(theme.moduleRadius + 6.dp)
 
     OverlayScaffold(visible = visible, source = source, hidden = hidden, onDismiss = onDismiss) {
         Column(

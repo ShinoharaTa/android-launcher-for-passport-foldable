@@ -49,7 +49,7 @@ class LauncherController(private val context: Context, private val scope: Corout
     private val layoutRepository = LayoutRepository(context)
     private val usageRepository = UsageRepository(context)
     private val themeRepository = ThemeRepository(context)
-    private val shortcutRepository = ShortcutRepository(context) { theme.value.iconShape }
+    private val shortcutRepository = ShortcutRepository(context) { theme.value.iconStyle }
     val appWidgets = AppWidgetHostManager(context)
 
     /** バインド許可と設定アクティビティはアクティビティの結果が要るので、その部分だけ外に出す。 */
@@ -106,7 +106,7 @@ class LauncherController(private val context: Context, private val scope: Corout
         }
         // アイコンの形が変わったら描き直す。最初の値はテーマ読み込み前の既定なので飛ばす
         scope.launch {
-            theme.map { it.iconShape }.distinctUntilChanged().drop(1).collect { refreshApps() }
+            theme.map { it.iconStyle }.distinctUntilChanged().drop(1).collect { refreshApps() }
         }
     }
 
@@ -323,8 +323,8 @@ class LauncherController(private val context: Context, private val scope: Corout
             .toSet()
 
     private suspend fun refreshApps() {
-        val shape = theme.value.iconShape
-        _apps.value = withContext(Dispatchers.IO) { appRepository.loadApps(shape) }.associateBy { it.key }
+        val style = theme.value.iconStyle
+        _apps.value = withContext(Dispatchers.IO) { appRepository.loadApps(style) }.associateBy { it.key }
     }
 
     private suspend fun refreshUsage() {

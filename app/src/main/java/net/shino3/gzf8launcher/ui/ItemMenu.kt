@@ -61,7 +61,7 @@ fun ItemMenu(
     onDismiss: () -> Unit,
 ) {
     val theme = LocalLauncherTheme.current
-    val shape = RoundedCornerShape(theme.moduleRadius + 4.dp)
+    val shape = theme.shapeOf(theme.moduleRadius + 4.dp)
     val ref = payload.source
     OverlayScaffold(visible = visible, source = source, hidden = hidden, onDismiss = onDismiss) {
         Column(
@@ -181,7 +181,7 @@ fun HomeMenu(
     onDismiss: () -> Unit,
 ) {
     val theme = LocalLauncherTheme.current
-    val shape = RoundedCornerShape(theme.moduleRadius + 4.dp)
+    val shape = theme.shapeOf(theme.moduleRadius + 4.dp)
     OverlayScaffold(visible = visible, source = source, hidden = false, onDismiss = onDismiss) {
         Column(
             modifier = Modifier
