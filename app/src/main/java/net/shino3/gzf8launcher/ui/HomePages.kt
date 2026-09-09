@@ -76,12 +76,15 @@ fun WidgetsPage(
     val theme = LocalLauncherTheme.current
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val cell = (maxWidth - sidePadding * 2) / theme.columns
-        val minRows = if (cell > 0.dp) ceil((maxHeight / cell).toDouble()).toInt() else 0
+        // 画面に収まる段数。中身がこれ以下なら伸ばさず、スクロールもしない
+        val minRows = if (cell > 0.dp) ((maxHeight - 8.dp) / cell).toInt() else 0
+        val scroll = rememberScrollState()
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .fadingScrollbar(scroll, theme.colors.textDim)
                 .homeEdgeScroll(gestures.sheet, gestures.onSearch)
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(scroll),
         ) {
             HomeGrid(
                 zone = zone,
@@ -118,7 +121,11 @@ fun AppPage(
         val scrolls = needed > maxHeight
         // 縦スクロールしないページでは、上スワイプでドロワー、下スワイプで検索(#25)
         val vertical = if (scrolls) {
-            Modifier.homeEdgeScroll(gestures.sheet, gestures.onSearch).verticalScroll(rememberScrollState())
+            val scroll = rememberScrollState()
+            Modifier
+                .fadingScrollbar(scroll, theme.colors.textDim)
+                .homeEdgeScroll(gestures.sheet, gestures.onSearch)
+                .verticalScroll(scroll)
         } else {
             Modifier.homeVerticalGestures(gestures.sheet, gestures.onSearch)
         }

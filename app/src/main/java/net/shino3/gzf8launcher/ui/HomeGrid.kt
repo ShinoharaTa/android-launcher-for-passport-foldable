@@ -49,7 +49,9 @@ fun HomeGrid(
         },
     ) { measurables, constraints ->
         val cellPx = constraints.maxWidth / columns
-        val rows = fixedRows ?: maxOf(minRows, zone.occupiedRows + SLACK_ROWS)
+        // 画面に収まるなら伸ばさない(スクロールしない)。はみ出すときだけ 1 段の余白を足し、
+        // はみ出した段が下端で切れて見えて「続きがある」と分かるようにする(#27)
+        val rows = fixedRows ?: if (zone.occupiedRows <= minRows) minRows else zone.occupiedRows + SLACK_ROWS
         val height = (rows * cellPx).coerceIn(constraints.minHeight, constraints.maxHeight)
         val itemCount = zone.items.size
         fun placementAt(index: Int) = if (index < itemCount) zone.items[index].placement else preview!!.placement
@@ -88,5 +90,5 @@ private fun DropPreviewFrame(kind: LayoutEditor.DropKind) {
     )
 }
 
-/** 末尾のアイテムの下に、いつも置ける空きを残す段数。 */
-private const val SLACK_ROWS = 2
+/** はみ出すとき、末尾のアイテムの下に残す空きの段数。 */
+private const val SLACK_ROWS = 1
