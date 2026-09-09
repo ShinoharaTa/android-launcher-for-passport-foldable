@@ -8,6 +8,10 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
         </intent>
+        <!-- 下スワイプで開く端末の全体検索(Galaxy の Finder など) -->
+        <intent>
+            <action android:name="android.search.action.GLOBAL_SEARCH" />
+        </intent>
     </queries>
 
     <!-- 規則つきフォルダ(最近起動、よく使う)のための使用状況アクセス。設定画面でユーザーが許可する -->

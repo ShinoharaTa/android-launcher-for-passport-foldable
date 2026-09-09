@@ -1,5 +1,9 @@
+@file:OptIn(ExperimentalSerializationApi::class)
+
 package net.shino3.gzf8launcher.model
 
+import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 
 /** グリッド上の矩形。col/row は 0 始まり、w/h はセル数。 */
@@ -32,6 +36,11 @@ data class Zone(val items: List<PlacedItem> = emptyList()) {
  */
 @Serializable
 data class Layout(
+    /**
+     * 既定値でも必ず書き出す。書き出しは既定値を省く設定なので、これが無いとファイルから version が消え、
+     * 読み込みで古い版と誤判定して中身を空にしてしまう(v0.2.0/v0.3.0 で踏んだ)。
+     */
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS)
     val version: Int = CURRENT_VERSION,
     /** ウィジェットと大型フォルダの面。 */
     val widgets: Zone = Zone(),

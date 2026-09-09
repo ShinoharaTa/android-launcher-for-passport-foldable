@@ -7,14 +7,12 @@ import android.view.View
 import android.graphics.Rect as AndroidRect
 import android.view.WindowManager
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.pager.rememberPagerState
@@ -55,14 +53,24 @@ import net.shino3.gzf8launcher.data.ShortcutEntry
 import net.shino3.gzf8launcher.model.AppItem
 import net.shino3.gzf8launcher.model.AppKey
 import net.shino3.gzf8launcher.model.ItemRef
+import net.shino3.gzf8launcher.model.LayoutEditor
+import net.shino3.gzf8launcher.model.Placement
+import net.shino3.gzf8launcher.model.ZoneId
 import net.shino3.gzf8launcher.theme.LauncherTheme
 import net.shino3.gzf8launcher.theme.LocalLauncherTheme
 import net.shino3.gzf8launcher.ui.drag.DragController
 import net.shino3.gzf8launcher.ui.drag.DragGhost
 import net.shino3.gzf8launcher.ui.drag.DragPayload
+import net.shino3.gzf8launcher.ui.drag.DragSession
+import net.shino3.gzf8launcher.ui.drag.DropPreview
 import net.shino3.gzf8launcher.ui.drag.DropTarget
+import net.shino3.gzf8launcher.ui.drag.Hover
 import net.shino3.gzf8launcher.ui.drag.LocalDragController
+import net.shino3.gzf8launcher.ui.drag.LocalDropPreview
+import net.shino3.gzf8launcher.ui.drag.RejectedGhost
 import net.shino3.gzf8launcher.ui.drag.dropTarget
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import net.shino3.gzf8launcher.ui.drawer.rememberDrawerSheetState
 import net.shino3.gzf8launcher.widget.LocalAppWidgetHost
 import net.shino3.gzf8launcher.widget.WidgetRegistry
@@ -74,6 +82,7 @@ sealed interface Overlay {
 
     data class Settings(override val source: Rect) : Overlay
     data class Home(override val source: Rect) : Overlay
+    data class Widgets(override val source: Rect) : Overlay
     data class Folder(val ref: ItemRef, override val source: Rect) : Overlay
     data class Menu(val payload: DragPayload, override val source: Rect) : Overlay
 }
@@ -116,16 +125,32 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
     val drag = remember(controller, theme.columns, theme.dockSlots) {
         DragController(
             slopPx = with(density) { 12.dp.toPx() },
-            onDrop = { session, target ->
-                controller.drop(session, target, theme.columns, theme.dockSlots)
+            onDrop = { session, target, dwell ->
+                val accepted = controller.drop(session, target, theme.columns, theme.dockSlots, dwell)
                 controller.pruneEmptyPages()
-                overlay = null
-                sheet.close()
+                // 拒否されたら影が元へ戻る。出どころ(ドロワーや一覧)は開いたままにして続けられるようにする
+                if (accepted) {
+                    overlay = null
+                    sheet.close()
+                }
+                accepted
             },
             onLongPress = { payload, bounds -> overlay = Overlay.Menu(payload, bounds) },
             onCancel = { controller.pruneEmptyPages() },
         )
     }
+    // 端末の全体検索(Galaxy の Finder など)。無ければ自前の一覧を検索欄に焦点を当てて開く
+    var searchFocus by remember { mutableStateOf(false) }
+    val onSearch: () -> Unit = remember(controller, sheet) {
+        {
+            if (!controller.openSearch()) {
+                searchFocus = true
+                sheet.open()
+            }
+        }
+    }
+    LaunchedEffect(sheet.progress > 0f) { if (sheet.progress == 0f) searchFocus = false }
+    val gestures = remember(sheet, onSearch) { HomeGestures(sheet, onSearch) }
     val view = LocalView.current
     val actions = remember(controller, view) {
         ItemActions(
@@ -167,7 +192,37 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
     val cellPx = gridWidthPx / theme.columns
     val session = drag.session
 
-    CompositionLocalProvider(LocalDragController provides drag, LocalAppWidgetHost provides controller.appWidgets) {
+    // 同じアプリの上に留めたらフォルダにまとめる印を立てる(#25)。場所が変われば振り出しに戻る
+    val haptic = LocalHapticFeedback.current
+    fun rowsOf(zone: ZoneId): Int? = if (zone is ZoneId.Page) theme.rows else null
+    fun classify(s: DragSession, h: Hover, dwell: Boolean): LayoutEditor.DropKind = when (h) {
+        is Hover.Cell -> LayoutEditor.classify(
+            layout, s.payload.source, h.zone, h.col, h.row, h.w, h.h, s.payload.item, theme.columns, rowsOf(h.zone), dwell,
+        )
+        is Hover.Dock -> LayoutEditor.classifyDock(layout, s.payload.source, h.slot, s.payload.item, theme.dockSlots, dwell)
+    }
+    val hover = drag.hover
+    LaunchedEffect(hover) {
+        val h = hover ?: return@LaunchedEffect
+        val s = drag.session ?: return@LaunchedEffect
+        if (classify(s, h, dwell = true) != LayoutEditor.DropKind.MERGE) return@LaunchedEffect
+        delay(DWELL_MILLIS)
+        drag.dwell = true
+        haptic.performHapticFeedback(HapticFeedbackType.Confirm)
+    }
+    val preview = if (session != null && hover is Hover.Cell) {
+        DropPreview(hover.zone, Placement(hover.col, hover.row, hover.w, hover.h), classify(session, hover, drag.dwell))
+    } else {
+        null
+    }
+
+    val removeInset by animateDpAsState(if (session != null) REMOVE_BAR_HEIGHT else 0.dp, label = "removeInset")
+
+    CompositionLocalProvider(
+        LocalDragController provides drag,
+        LocalAppWidgetHost provides controller.appWidgets,
+        LocalDropPreview provides preview,
+    ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -186,21 +241,24 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
                         scaleY = s
                         alpha = 1f - 0.7f * p
                     }
-                    .systemBarsPadding(),
+                    .systemBarsPadding()
+                    // ドラッグ中は上端の削除先ぶんだけ下がり、先頭の段が削除先に隠れないようにする
+                    .padding(top = removeInset),
             ) {
-                // ホームは縦スクロールなので、上ドラッグでドロワーを開く入口は置かない(#19)
+                // 面ごとの上スワイプ(ドロワー)と下スワイプ(検索)は HomePages 側で受ける(#25)
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .longPressOnEmptySpace(drag) { at -> overlay = Overlay.Home(Rect(at, at)) },
                 ) {
                     if (sideBySide) {
-                        SideBySideSurface(layout, apps, actions, appsPager, onCreatePage = { controller.addPage() })
+                        SideBySideSurface(layout, apps, actions, appsPager, gestures, onCreatePage = { controller.addPage() })
                     } else {
-                        PagedSurface(layout, apps, actions, coverPager, onCreatePage = { controller.addPage() }, sidePadding = pageSidePadding)
+                        PagedSurface(layout, apps, actions, coverPager, gestures, onCreatePage = { controller.addPage() }, sidePadding = pageSidePadding)
                     }
                 }
-                Dock(layout.dock, apps, actions, onOpenDrawer = { sheet.open() }, modifier = Modifier.dragToOpenDrawer(sheet))
+                // ドックはどの面でも上スワイプでドロワー、下スワイプで検索
+                Dock(layout.dock, apps, actions, modifier = Modifier.homeVerticalGestures(sheet, onSearch))
             }
 
             if (theme.decor.scanlines) Scanlines(theme.colors.line.copy(alpha = 0.06f))
@@ -218,13 +276,12 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
                         sheet = sheet,
                         hidden = session != null,
                         toItem = { controller.toAppItem(it) },
-                        widgets = WidgetRegistry.all.toList(),
-                        providers = controller.appWidgets.providers(),
-                        cellPx = cellPx,
+                        // 上がりきってから焦点を当てる。途中で当てると入力欄がまだ付いておらず失敗する
+                        focusSearch = searchFocus && sheet.progress >= 1f,
                         onLaunch = { entry, bounds ->
-                        controller.launch(entry, bounds.toAndroidRect(), view.scaleUpOptions(bounds))
-                        sheet.close()
-                    },
+                            controller.launch(entry, bounds.toAndroidRect(), view.scaleUpOptions(bounds))
+                            sheet.close()
+                        },
                     )
                 }
             }
@@ -243,8 +300,17 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
                 is Overlay.Home -> HomeMenu(
                     visible = visible,
                     source = current.source,
+                    onOpenWidgets = { overlay = Overlay.Widgets(current.source) },
                     onOpenSettings = { overlay = Overlay.Settings(current.source) },
-                    onOpenDrawer = { overlay = null; sheet.open() },
+                    onDismiss = { overlay = null },
+                )
+                is Overlay.Widgets -> WidgetPicker(
+                    visible = visible,
+                    source = current.source,
+                    hidden = session != null,
+                    widgets = WidgetRegistry.all.toList(),
+                    providers = controller.appWidgets.providers(),
+                    cellPx = cellPx,
                     onDismiss = { overlay = null },
                 )
                 is Overlay.Folder -> FolderPopup(
@@ -278,9 +344,16 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
                 null -> Unit
             }
             if (session != null) DragGhost(session)
+            drag.rejected?.let { RejectedGhost(it) { drag.rejected = null } }
         }
     }
 }
+
+/** 同じ場所に留めてフォルダにまとめる印が立つまでの時間。 */
+private const val DWELL_MILLIS = 500L
+
+/** ドラッグ中に上端へ出る削除先の高さ。ホームはこのぶん下がる。 */
+private val REMOVE_BAR_HEIGHT = 56.dp
 
 /**
  * ウィンドウ側の見た目をテーマに合わせる。
@@ -326,20 +399,6 @@ private fun Modifier.longPressOnEmptySpace(drag: DragController, onLongPress: (O
         }
     }
 
-/**
- * 上方向のドラッグでドロワーを引き上げる。閾値で切り替えず、指の移動に追従させる(#11)。
- * 子の長押しドラッグとは、長押しの有無で切り分けられる。
- */
-@Composable
-private fun Modifier.dragToOpenDrawer(sheet: net.shino3.gzf8launcher.ui.drawer.DrawerSheetState): Modifier {
-    val state = rememberDraggableState { delta -> sheet.dragBy(delta) }
-    return draggable(
-        state = state,
-        orientation = Orientation.Vertical,
-        onDragStopped = { velocity -> sheet.settle(velocity) },
-    )
-}
-
 /** アイコンの矩形から画面が広がる起動オプション。矩形が分からないときは既定の遷移に任せる。 */
 private fun View.scaleUpOptions(bounds: Rect): Bundle? {
     if (bounds.isEmpty) return null
@@ -365,7 +424,7 @@ private fun RemoveBar() {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(72.dp)
+            .height(REMOVE_BAR_HEIGHT)
             .background(theme.colors.surface)
             .border(1.dp, theme.colors.accent)
             .dropTarget("remove") { DropTarget.Remove(it) },

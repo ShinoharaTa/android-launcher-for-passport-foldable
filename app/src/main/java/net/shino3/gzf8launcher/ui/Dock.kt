@@ -2,14 +2,7 @@ package net.shino3.gzf8launcher.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -30,14 +23,13 @@ import net.shino3.gzf8launcher.ui.drag.dropTarget
 
 /**
  * カバーとメインで共有する 1 本のレール(docs/04)。
- * 右端にドロワーを開くボタンを持つ。ホームが縦スクロールになったので、上ドラッグの代わりの入口(#19)。
+ * ドロワーの入口は上スワイプに揃えたので、ボタンは持たない(#25)。
  */
 @Composable
 fun Dock(
     items: List<Item>,
     apps: Map<AppKey, AppEntry>,
     actions: ItemActions,
-    onOpenDrawer: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val theme = LocalLauncherTheme.current
@@ -55,36 +47,6 @@ fun Dock(
             Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
                 items.getOrNull(slot)?.let { item ->
                     ItemView(item, ItemRef.Dock(slot), apps, actions, showLabel = false)
-                }
-            }
-        }
-        DrawerButton(onOpenDrawer)
-    }
-}
-
-/** 2×2 の点。全アプリ一覧の入口。 */
-@Composable
-private fun DrawerButton(onClick: () -> Unit) {
-    val theme = LocalLauncherTheme.current
-    Box(
-        modifier = Modifier
-            .width(56.dp)
-            .fillMaxHeight()
-            .pointerInput(Unit) { detectTapGestures { onClick() } },
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            repeat(2) {
-                Row {
-                    repeat(2) {
-                        Box(
-                            modifier = Modifier
-                                .padding(2.dp)
-                                .size(7.dp)
-                                .clip(CircleShape)
-                                .background(theme.colors.accent),
-                        )
-                    }
                 }
             }
         }

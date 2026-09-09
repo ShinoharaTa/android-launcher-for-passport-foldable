@@ -55,7 +55,11 @@ import net.shino3.gzf8launcher.model.Zone
 import net.shino3.gzf8launcher.model.ZoneId
 import net.shino3.gzf8launcher.theme.LocalLauncherTheme
 import net.shino3.gzf8launcher.ui.drag.LocalDragController
+import net.shino3.gzf8launcher.ui.drawer.DrawerSheetState
 import kotlin.math.ceil
+
+/** ホームの面に共通して渡す縦ジェスチャの行き先(#25)。 */
+class HomeGestures(val sheet: DrawerSheetState, val onSearch: () -> Unit)
 
 /**
  * ウィジェット面。縦にいくらでも伸びるグリッドを、画面の高さを下限にしてスクロールさせる(#19)。
@@ -65,6 +69,7 @@ fun WidgetsPage(
     zone: Zone,
     apps: Map<AppKey, AppEntry>,
     actions: ItemActions,
+    gestures: HomeGestures,
     modifier: Modifier = Modifier,
     sidePadding: Dp = 8.dp,
 ) {
@@ -72,7 +77,12 @@ fun WidgetsPage(
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val cell = (maxWidth - sidePadding * 2) / theme.columns
         val minRows = if (cell > 0.dp) ceil((maxHeight / cell).toDouble()).toInt() else 0
-        Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .homeEdgeScroll(gestures.sheet, gestures.onSearch)
+                .verticalScroll(rememberScrollState()),
+        ) {
             HomeGrid(
                 zone = zone,
                 zoneId = ZoneId.Widgets,
@@ -96,6 +106,7 @@ fun AppPage(
     index: Int,
     apps: Map<AppKey, AppEntry>,
     actions: ItemActions,
+    gestures: HomeGestures,
     modifier: Modifier = Modifier,
     sidePadding: Dp = 8.dp,
 ) {
@@ -105,11 +116,13 @@ fun AppPage(
         val cell = (maxWidth - sidePadding * 2) / theme.columns
         val needed = cell * theme.rows + 8.dp
         val scrolls = needed > maxHeight
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .then(if (scrolls) Modifier.verticalScroll(rememberScrollState()) else Modifier),
-        ) {
+        // 縦スクロールしないページでは、上スワイプでドロワー、下スワイプで検索(#25)
+        val vertical = if (scrolls) {
+            Modifier.homeEdgeScroll(gestures.sheet, gestures.onSearch).verticalScroll(rememberScrollState())
+        } else {
+            Modifier.homeVerticalGestures(gestures.sheet, gestures.onSearch)
+        }
+        Column(modifier = Modifier.fillMaxSize().then(vertical)) {
             HomeGrid(
                 zone = zone,
                 zoneId = zoneId,
@@ -133,6 +146,7 @@ fun PagedSurface(
     apps: Map<AppKey, AppEntry>,
     actions: ItemActions,
     pagerState: PagerState,
+    gestures: HomeGestures,
     onCreatePage: () -> Unit,
     modifier: Modifier = Modifier,
     sidePadding: Dp = 8.dp,
@@ -146,10 +160,10 @@ fun PagedSurface(
             key = { it },
         ) { page ->
             if (page == 0) {
-                WidgetsPage(layout.widgets, apps, actions, sidePadding = sidePadding)
+                WidgetsPage(layout.widgets, apps, actions, gestures, sidePadding = sidePadding)
             } else {
                 val index = page - 1
-                AppPage(layout.pages.getOrElse(index) { Zone() }, index, apps, actions, sidePadding = sidePadding)
+                AppPage(layout.pages.getOrElse(index) { Zone() }, index, apps, actions, gestures, sidePadding = sidePadding)
             }
         }
         if (theme.decor.pageIndicator) PageIndicator(pagerState)
@@ -166,6 +180,7 @@ fun SideBySideSurface(
     apps: Map<AppKey, AppEntry>,
     actions: ItemActions,
     appsPager: PagerState,
+    gestures: HomeGestures,
     onCreatePage: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -178,7 +193,7 @@ fun SideBySideSurface(
         Row(modifier = Modifier.fillMaxSize()) {
             Column(modifier = Modifier.width(leftWidth).fillMaxHeight()) {
                 ZoneHeader("BOARD // GLANCE")
-                WidgetsPage(layout.widgets, apps, actions, Modifier.weight(1f))
+                WidgetsPage(layout.widgets, apps, actions, gestures, Modifier.weight(1f))
             }
             if (theme.decor.hingeMarker) {
                 Box(modifier = Modifier.width(maxOf(1.dp, gapWidth)).fillMaxHeight().background(theme.colors.line))
@@ -193,7 +208,7 @@ fun SideBySideSurface(
                     beyondViewportPageCount = 1,
                     key = { it },
                 ) { page ->
-                    AppPage(layout.pages.getOrElse(page) { Zone() }, page, apps, actions)
+                    AppPage(layout.pages.getOrElse(page) { Zone() }, page, apps, actions, gestures)
                 }
                 if (theme.decor.pageIndicator) PageIndicator(appsPager)
             }

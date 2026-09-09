@@ -167,33 +167,43 @@ class LauncherController(private val context: Context, private val scope: Corout
 
     // ---- 編集 ----
 
-    fun drop(session: DragSession, target: DropTarget?, columns: Int, dockSlots: Int) {
-        if (target == null) return
+    /**
+     * 落とす。受け付けたら true。拒否は false で、呼び出し側が影を戻す(#25)。
+     * dwell は「アプリの上に留めてから離した」印で、そのときだけフォルダにまとめる。
+     */
+    fun drop(session: DragSession, target: DropTarget?, columns: Int, dockSlots: Int, dwell: Boolean): Boolean {
+        if (target == null) return false
         val p = session.payload
         val item = p.item
+        if (item is AppWidgetItem && item.appWidgetId < 0) {
+            // ウィジェット一覧から来た新しい AppWidget。バインドしてから置く
+            if (target !is DropTarget.Grid) return false
+            val (col, row) = target.cellFor(session.position, p.w, p.h)
+            beginAppWidgetPlacement(item, target.zone, col, row, p.w, p.h, target.columns, target.rows)
+            return true
+        }
+        val current = layout.value
+        val base = p.source?.let { LayoutEditor.remove(current, it) } ?: current
+        val next = when (target) {
+            is DropTarget.Remove -> if (p.source == null) null else base
+            is DropTarget.Grid -> {
+                val (col, row) = target.cellFor(session.position, p.w, p.h)
+                LayoutEditor.dropOnGrid(base, target.zone, col, row, p.item, p.w, p.h, target.columns, target.rows, dwell)
+            }
+            is DropTarget.Dock -> LayoutEditor.dropOnDock(base, target.slotAt(session.position), p.item, dockSlots, dwell)
+        } ?: return false
         // ホームに置くショートカットは、アプリ側から消えないように固定しておく
         if (item is ShortcutItem && p.source == null) {
             scope.launch { withContext(Dispatchers.IO) { shortcutRepository.pin(item) } }
         }
-        if (item is AppWidgetItem && item.appWidgetId < 0) {
-            // ドロワーから来た新しい AppWidget。バインドしてから置く
-            if (target is DropTarget.Grid) {
-                val (col, row) = target.cellFor(session.position, p.w, p.h)
-                beginAppWidgetPlacement(item, target.zone, col, row, p.w, p.h, target.columns, target.rows)
-            }
-            return
-        }
-        edit { layout ->
-            val base = p.source?.let { LayoutEditor.remove(layout, it) } ?: layout
-            when (target) {
-                is DropTarget.Remove -> if (p.source == null) null else base
-                is DropTarget.Grid -> {
-                    val (col, row) = target.cellFor(session.position, p.w, p.h)
-                    LayoutEditor.dropOnGrid(base, target.zone, col, row, p.item, p.w, p.h, target.columns, target.rows)
-                }
-                is DropTarget.Dock -> LayoutEditor.dropOnDock(base, target.slotAt(session.position), p.item, dockSlots)
-            }
-        }
+        edit { next }
+        return true
+    }
+
+    /** 端末の全体検索(Galaxy の Finder など)を開く。無ければ false で、呼び出し側が自前の一覧に落とす。 */
+    fun openSearch(): Boolean {
+        val intent = GlobalSearch.intent(context) ?: return false
+        return runCatching { context.startActivity(intent) }.isSuccess
     }
 
     fun remove(ref: ItemRef) = edit { LayoutEditor.remove(it, ref) }
