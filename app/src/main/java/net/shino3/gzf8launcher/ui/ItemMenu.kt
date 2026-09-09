@@ -21,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -46,6 +47,8 @@ import net.shino3.gzf8launcher.ui.drag.dragSource
 @Composable
 fun ItemMenu(
     payload: DragPayload,
+    visible: Boolean,
+    source: Rect?,
     layout: Layout,
     shortcuts: List<ShortcutEntry>,
     hidden: Boolean,
@@ -53,13 +56,13 @@ fun ItemMenu(
     onOpenFolder: (ItemRef) -> Unit,
     onResize: (ItemRef, dw: Int, dh: Int) -> Unit,
     onRemove: (ItemRef) -> Unit,
-    onLaunchShortcut: (ShortcutItem) -> Unit,
+    onLaunchShortcut: (ShortcutItem, Rect) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val theme = LocalLauncherTheme.current
     val shape = RoundedCornerShape(theme.moduleRadius + 4.dp)
     val ref = payload.source
-    Overlay(hidden = hidden, onDismiss = onDismiss) {
+    OverlayScaffold(visible = visible, source = source, hidden = hidden, onDismiss = onDismiss) {
         Column(
             modifier = Modifier
                 .width(300.dp)
@@ -122,7 +125,7 @@ fun ItemMenu(
                         }
                     }
                 }
-                is ShortcutItem -> MenuRow("LAUNCH") { onLaunchShortcut(item); onDismiss() }
+                is ShortcutItem -> MenuRow("LAUNCH") { onLaunchShortcut(item, source ?: Rect.Zero); onDismiss() }
             }
             if (ref != null) MenuRow("REMOVE", accent = true) { onRemove(ref); onDismiss() }
         }
@@ -131,7 +134,7 @@ fun ItemMenu(
 
 /** ショートカット 1 件。タップで起動、長押しドラッグでホームに固定できる。 */
 @Composable
-private fun ShortcutRow(entry: ShortcutEntry, onLaunch: (ShortcutItem) -> Unit) {
+private fun ShortcutRow(entry: ShortcutEntry, onLaunch: (ShortcutItem, Rect) -> Unit) {
     val theme = LocalLauncherTheme.current
     val item = entry.toItem()
     Row(
@@ -140,7 +143,7 @@ private fun ShortcutRow(entry: ShortcutEntry, onLaunch: (ShortcutItem) -> Unit) 
             .fillMaxWidth()
             .dragSource(
                 payload = DragPayload(item, null, entry.icon, entry.label),
-                onTap = { onLaunch(item) },
+                onTap = { bounds -> onLaunch(item, bounds) },
             )
             .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
@@ -179,10 +182,10 @@ private fun MenuRow(label: String, accent: Boolean = false, onClick: () -> Unit)
 
 /** ホームの空き領域を長押ししたときのメニュー。設定への入口(2026-09-03 決定)。 */
 @Composable
-fun HomeMenu(onOpenSettings: () -> Unit, onOpenDrawer: () -> Unit, onDismiss: () -> Unit) {
+fun HomeMenu(visible: Boolean, source: Rect?, onOpenSettings: () -> Unit, onOpenDrawer: () -> Unit, onDismiss: () -> Unit) {
     val theme = LocalLauncherTheme.current
     val shape = RoundedCornerShape(theme.moduleRadius + 4.dp)
-    Overlay(hidden = false, onDismiss = onDismiss) {
+    OverlayScaffold(visible = visible, source = source, hidden = false, onDismiss = onDismiss) {
         Column(
             modifier = Modifier
                 .width(260.dp)

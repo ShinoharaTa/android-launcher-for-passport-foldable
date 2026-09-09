@@ -3,6 +3,8 @@ package net.shino3.gzf8launcher.data
 import android.appwidget.AppWidgetProviderInfo
 import android.content.ComponentName
 import android.content.Context
+import android.graphics.Rect
+import android.os.Bundle
 import android.os.UserHandle
 import android.content.pm.LauncherApps
 import kotlinx.coroutines.CoroutineScope
@@ -103,7 +105,8 @@ class LauncherController(private val context: Context, private val scope: Corout
         _homeSignal.tryEmit(Unit)
     }
 
-    fun launch(entry: AppEntry) = appRepository.launch(entry)
+    fun launch(entry: AppEntry, sourceBounds: Rect? = null, opts: Bundle? = null) =
+        appRepository.launch(entry, sourceBounds, opts)
 
     fun toAppItem(entry: AppEntry) = AppItem(
         component = entry.componentName.flattenToString(),
@@ -127,7 +130,8 @@ class LauncherController(private val context: Context, private val scope: Corout
     suspend fun resolveShortcut(item: ShortcutItem): ShortcutEntry? =
         withContext(Dispatchers.IO) { shortcutRepository.resolve(item) }
 
-    fun launchShortcut(item: ShortcutItem) = shortcutRepository.launch(item)
+    fun launchShortcut(item: ShortcutItem, sourceBounds: Rect? = null, opts: Bundle? = null) =
+        shortcutRepository.launch(item, sourceBounds, opts)
 
     fun applyTheme(spec: ThemeSpec) {
         scope.launch { themeRepository.apply(spec) }

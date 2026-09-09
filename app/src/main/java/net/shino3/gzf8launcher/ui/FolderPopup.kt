@@ -22,8 +22,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
@@ -46,6 +46,8 @@ import net.shino3.gzf8launcher.theme.LocalLauncherTheme
 @Composable
 fun FolderPopup(
     folderRef: ItemRef,
+    visible: Boolean,
+    source: Rect?,
     layout: Layout,
     apps: Map<AppKey, AppEntry>,
     actions: ItemActions,
@@ -63,7 +65,7 @@ fun FolderPopup(
     val members = actions.resolveFolder(folder)
     val shape = RoundedCornerShape(theme.moduleRadius + 6.dp)
 
-    Overlay(hidden = hidden, onDismiss = onDismiss) {
+    OverlayScaffold(visible = visible, source = source, hidden = hidden, onDismiss = onDismiss) {
         Column(
             modifier = Modifier
                 .fillMaxWidth(0.86f)
@@ -103,9 +105,11 @@ fun FolderPopup(
                         ref = ItemRef.InFolder(folderRef, index),
                         apps = apps,
                         actions = ItemActions(
-                            onLaunch = { actions.onLaunch(it); onDismiss() },
-                            onOpenFolder = {},
+                            onLaunch = { entry, bounds -> actions.onLaunch(entry, bounds); onDismiss() },
+                            onOpenFolder = { _, _ -> },
                             resolveFolder = actions.resolveFolder,
+                            resolveShortcut = actions.resolveShortcut,
+                            onLaunchShortcut = { item, bounds -> actions.onLaunchShortcut(item, bounds); onDismiss() },
                         ),
                         modifier = Modifier.aspectRatio(0.9f),
                         showLabel = true,
@@ -144,24 +148,6 @@ private fun RuleSelector(current: FolderRule, onChange: (FolderRule) -> Unit) {
                     .pointerInput(rule) { detectTapGestures { onChange(rule) } }
                     .padding(horizontal = 6.dp, vertical = 3.dp),
             )
-        }
-    }
-}
-
-/** 画面全体を覆う重ね描き。外側のタップで閉じる。hidden のあいだは見えないが合成には残る(ドラッグ継続のため)。 */
-@Composable
-fun Overlay(hidden: Boolean, onDismiss: () -> Unit, content: @Composable () -> Unit) {
-    val scrim = if (LocalLauncherTheme.current.light) Color(0x99FFFFFF) else Color(0x99000000)
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .alpha(if (hidden) 0f else 1f)
-            .background(scrim)
-            .pointerInput(Unit) { detectTapGestures { onDismiss() } },
-        contentAlignment = Alignment.Center,
-    ) {
-        Box(modifier = Modifier.pointerInput(Unit) { detectTapGestures { } }) {
-            content()
         }
     }
 }
