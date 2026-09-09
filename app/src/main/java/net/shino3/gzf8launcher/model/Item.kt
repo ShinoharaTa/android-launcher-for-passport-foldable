@@ -49,6 +49,17 @@ sealed interface FolderRule {
     @Serializable @SerialName("category") data class Category(val category: Int, val limit: Int = 12) : FolderRule
 }
 
+/** ホームに固定した Android のショートカット。中身はアプリ側が持つので参照だけを保存する。 */
+@Serializable
+@SerialName("shortcut")
+data class ShortcutItem(
+    val packageName: String,
+    val shortcutId: String,
+    val user: Long? = null,
+    /** 引き直せなかったときに出す控えの表示名。 */
+    val label: String = "",
+) : Item
+
 @Serializable
 @SerialName("widget")
 data class NativeWidgetItem(

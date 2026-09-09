@@ -26,6 +26,7 @@ import net.shino3.gzf8launcher.model.FolderRule
 import net.shino3.gzf8launcher.model.ItemRef
 import net.shino3.gzf8launcher.model.Layout
 import net.shino3.gzf8launcher.model.LayoutEditor
+import net.shino3.gzf8launcher.model.ShortcutItem
 import net.shino3.gzf8launcher.model.NativeWidgetItem
 import net.shino3.gzf8launcher.widget.WidgetRegistry
 import net.shino3.gzf8launcher.ui.drag.DragSession
@@ -37,6 +38,7 @@ class LauncherController(private val context: Context, private val scope: Corout
     private val layoutRepository = LayoutRepository(context)
     private val usageRepository = UsageRepository(context)
     private val themeRepository = ThemeRepository(context)
+    private val shortcutRepository = ShortcutRepository(context)
     val appWidgets = AppWidgetHostManager(context)
 
     /** バインド許可と設定アクティビティはアクティビティの結果が要るので、その部分だけ外に出す。 */
@@ -112,6 +114,19 @@ class LauncherController(private val context: Context, private val scope: Corout
             .startAppDetailsActivity(entry.componentName, entry.user, null, null)
     }
 
+    // ---- ショートカット(#11) ----
+
+    /** そのアプリが持つ Android のショートカット。既定ホームでないと空になる。 */
+    suspend fun shortcutsFor(item: AppItem): List<ShortcutEntry> {
+        val entry = _apps.value[item.key] ?: return emptyList()
+        return withContext(Dispatchers.IO) { shortcutRepository.forActivity(entry.componentName, entry.user) }
+    }
+
+    suspend fun resolveShortcut(item: ShortcutItem): ShortcutEntry? =
+        withContext(Dispatchers.IO) { shortcutRepository.resolve(item) }
+
+    fun launchShortcut(item: ShortcutItem) = shortcutRepository.launch(item)
+
     fun applyTheme(spec: ThemeSpec) {
         scope.launch { themeRepository.apply(spec) }
     }
@@ -150,6 +165,10 @@ class LauncherController(private val context: Context, private val scope: Corout
         if (target == null) return
         val p = session.payload
         val item = p.item
+        // ホームに置くショートカットは、アプリ側から消えないように固定しておく
+        if (item is ShortcutItem && p.source == null) {
+            scope.launch { withContext(Dispatchers.IO) { shortcutRepository.pin(item) } }
+        }
         if (item is AppWidgetItem && item.appWidgetId < 0) {
             // ドロワーから来た新しい AppWidget。バインドしてから置く
             if (target is DropTarget.Grid) {

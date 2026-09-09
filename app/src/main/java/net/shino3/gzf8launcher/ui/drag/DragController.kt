@@ -1,7 +1,10 @@
 package net.shino3.gzf8launcher.ui.drag
 
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
+import androidx.compose.foundation.gestures.drag
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -16,12 +19,11 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalHapticFeedback
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
 import net.shino3.gzf8launcher.model.Item
 import net.shino3.gzf8launcher.model.ItemRef
 import net.shino3.gzf8launcher.model.ZoneId
@@ -101,9 +103,10 @@ class DragController(
 val LocalDragController = staticCompositionLocalOf<DragController> { error("DragController is not provided") }
 
 /**
- * 長押しでドラッグを始められるようにする。タップもここで扱う。
- * clickable と併用すると長押し後の指離しがクリックになってしまうので、
- * 同じジェスチャで長押しが起きたときはタップを抑止する。
+ * 長押しでドラッグを始められるようにし、短いタップも同じ場所で扱う。
+ *
+ * タップ検出と長押し検出を別々のコルーチンで並べると、片方が最初の down を消費して
+ * もう片方に届かなくなる。ひとつのジェスチャ処理にまとめて順番に判定する。
  */
 @Composable
 fun Modifier.dragSource(payload: DragPayload, enabled: Boolean = true, onTap: (() -> Unit)? = null): Modifier {
@@ -113,33 +116,30 @@ fun Modifier.dragSource(payload: DragPayload, enabled: Boolean = true, onTap: ((
     return this
         .onGloballyPositioned { origin = it.positionInRoot() }
         .pointerInput(payload, enabled, onTap) {
-            coroutineScope {
-                var longPressed = false
-                if (onTap != null) {
-                    launch {
-                        detectTapGestures(
-                            onPress = { longPressed = false },
-                            onTap = { if (!longPressed) onTap() },
-                        )
+            awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false)
+                if (!enabled) {
+                    val up = waitForUpOrCancellation()
+                    if (up != null) {
+                        up.consume()
+                        onTap?.invoke()
                     }
+                    return@awaitEachGesture
                 }
-                if (enabled) {
-                    launch {
-                        detectDragGesturesAfterLongPress(
-                            onDragStart = { offset ->
-                                longPressed = true
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                controller.begin(payload, origin + offset)
-                            },
-                            onDrag = { change, amount ->
-                                change.consume()
-                                controller.move(amount)
-                            },
-                            onDragEnd = { controller.end() },
-                            onDragCancel = { controller.cancel() },
-                        )
+                val longPress = awaitLongPressOrCancellation(down.id)
+                if (longPress != null) {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    controller.begin(payload, origin + longPress.position)
+                    drag(longPress.id) { change ->
+                        controller.move(change.positionChange())
+                        change.consume()
                     }
+                    controller.end()
+                    return@awaitEachGesture
                 }
+                // 長押しにならなかった。指が既に離れていればタップ、まだ触れているならスクロール等に譲る
+                val stillDown = currentEvent.changes.any { it.id == down.id && it.pressed }
+                if (!stillDown) onTap?.invoke()
             }
         }
 }
