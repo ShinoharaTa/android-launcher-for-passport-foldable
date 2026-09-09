@@ -5,6 +5,8 @@ import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -25,6 +27,7 @@ import java.io.File
  */
 class LayoutRepository(private val context: Context) {
     private val file = File(context.filesDir, FILE_NAME)
+    private val writeMutex = Mutex()
     private val _layout = MutableStateFlow(Layout())
     val layout: StateFlow<Layout> = _layout
 
@@ -38,10 +41,13 @@ class LayoutRepository(private val context: Context) {
         _layout.value = parsed
     }
 
+    /** 続けて呼ばれても書き込みが追い越さないように直列にする。 */
     suspend fun update(transform: (Layout) -> Layout) {
         val next = transform(_layout.value)
         _layout.value = next
-        withContext(Dispatchers.IO) { file.writeText(json.encodeToString(next)) }
+        writeMutex.withLock {
+            withContext(Dispatchers.IO) { file.writeText(json.encodeToString(next)) }
+        }
     }
 
     fun export(): String = json.encodeToString(_layout.value)
@@ -56,14 +62,23 @@ class LayoutRepository(private val context: Context) {
         val version = root["version"]?.jsonPrimitive?.intOrNull ?: 1
         val element = when {
             version >= Layout.CURRENT_VERSION -> root
-            version == 2 -> migrateV2(root)
-            else -> migrateV1(root)
+            version == 3 -> migrateV3(root)
+            version == 2 -> migrateV3(migrateV2(root))
+            else -> migrateV3(migrateV1(root))
         }
         return json.decodeFromJsonElement(Layout.serializer(), element)
     }
 
-    private fun migrateV1(root: JsonObject): JsonObject = buildJsonObject {
+    /** version 3: アプリ面が 1 枚 → それを先頭のページにする。 */
+    private fun migrateV3(root: JsonObject): JsonObject = buildJsonObject {
         put("version", Layout.CURRENT_VERSION)
+        root["widgets"]?.let { put("widgets", it) }
+        put("pages", JsonArray(listOf(root["apps"] ?: buildJsonObject { put("items", JsonArray(emptyList())) })))
+        root["dock"]?.let { put("dock", it) }
+    }
+
+    private fun migrateV1(root: JsonObject): JsonObject = buildJsonObject {
+        put("version", 3)
         put("widgets", stack(root["cover"]?.jsonObject, root["extension"]?.jsonObject))
         put("apps", buildJsonObject { put("items", JsonArray(emptyList())) })
         root["dock"]?.let { put("dock", it) }
@@ -72,7 +87,7 @@ class LayoutRepository(private val context: Context) {
     private fun migrateV2(root: JsonObject): JsonObject = buildJsonObject {
         val cover = root["cover"]?.jsonObject
         val extension = root["extension"]?.jsonObject
-        put("version", Layout.CURRENT_VERSION)
+        put("version", 3)
         put("widgets", stack(cover?.get("widgets")?.jsonObject, extension?.get("widgets")?.jsonObject))
         put("apps", stack(cover?.get("shelf")?.jsonObject, extension?.get("shelf")?.jsonObject))
         root["dock"]?.let { put("dock", it) }

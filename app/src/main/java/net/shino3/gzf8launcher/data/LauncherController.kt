@@ -201,13 +201,26 @@ class LauncherController(private val context: Context, private val scope: Corout
         LayoutEditor.replace(layout, ref, folder.copy(rule = rule))
     }
 
-    fun resize(ref: ItemRef, dw: Int, dh: Int, columns: Int) = edit { layout ->
+    /** pageRows はアプリのページの段数。ウィジェット面には上限がない。 */
+    fun resize(ref: ItemRef, dw: Int, dh: Int, columns: Int, pageRows: Int) = edit { layout ->
         val p = LayoutEditor.placementOf(layout, ref) ?: return@edit null
         val w = p.w + dw
         val h = p.h + dh
         val spec = (LayoutEditor.itemAt(layout, ref) as? NativeWidgetItem)?.let { WidgetRegistry.get(it.widget)?.spec }
         if (spec != null && (w !in spec.minW..spec.maxW || h !in spec.minH..spec.maxH)) return@edit null
-        LayoutEditor.resize(layout, ref, w, h, columns)
+        val rows = ((ref as? ItemRef.Grid)?.zone as? ZoneId.Page)?.let { pageRows }
+        LayoutEditor.resize(layout, ref, w, h, columns, rows)
+    }
+
+    // ---- ページ(#21) ----
+
+    /** 末尾に空のページを足す。ドラッグで右端に留めたときに呼ぶ。 */
+    fun addPage() = edit { it.withNewPage() }
+
+    /** 空のページを消す。ドラッグが終わるたびに呼ぶ。 */
+    fun pruneEmptyPages() = edit { layout ->
+        val next = layout.withoutEmptyPages()
+        if (next == layout) null else next
     }
 
     // ---- AppWidget のバインド ----

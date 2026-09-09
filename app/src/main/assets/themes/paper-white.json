@@ -16,7 +16,7 @@
     "gradient": null,
     "light": true
   },
-  "grid": { "columns": 6, "dockSlots": 6, "folderColumns": 3 },
+  "grid": { "columns": 6, "rows": 7, "dockSlots": 6, "folderColumns": 3 },
   "icon": { "scale": 0.56, "labels": true, "shape": "circle" },
   "widgets": {
     "headers": false,

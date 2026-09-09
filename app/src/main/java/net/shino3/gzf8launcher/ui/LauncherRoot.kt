@@ -84,7 +84,9 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
     val themes by controller.themes.collectAsStateWithLifecycle()
     var overlay by remember { mutableStateOf<Overlay?>(null) }
     val sheet = rememberDrawerSheetState()
-    val pagerState = rememberPagerState(initialPage = Pages.APPS) { Pages.COUNT }
+    // カバー(と縦長メイン)は 0 がウィジェット面、1 以降がアプリのページ。横長メインの右側はアプリのページだけ
+    val coverPager = rememberPagerState(initialPage = 1) { 1 + layout.pages.size }
+    val appsPager = rememberPagerState(initialPage = 0) { layout.pages.size }
     val density = LocalDensity.current
 
     ApplyWindowAppearance(theme)
@@ -94,10 +96,12 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
             slopPx = with(density) { 12.dp.toPx() },
             onDrop = { session, target ->
                 controller.drop(session, target, theme.columns, theme.dockSlots)
+                controller.pruneEmptyPages()
                 overlay = null
                 sheet.close()
             },
             onLongPress = { payload -> overlay = Overlay.Menu(payload) },
+            onCancel = { controller.pruneEmptyPages() },
         )
     }
     val actions = remember(controller) {
@@ -124,7 +128,8 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
         controller.homeSignal.collect {
             overlay = null
             sheet.close()
-            pagerState.animateScrollToPage(Pages.APPS)
+            coverPager.animateScrollToPage(1)
+            appsPager.animateScrollToPage(0)
         }
     }
 
@@ -167,9 +172,9 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
                         .longPressOnEmptySpace(drag) { overlay = Overlay.Home },
                 ) {
                     if (sideBySide) {
-                        SideBySideSurface(layout, apps, actions)
+                        SideBySideSurface(layout, apps, actions, appsPager, onCreatePage = { controller.addPage() })
                     } else {
-                        PagedSurface(layout, apps, actions, pagerState, sidePadding = pageSidePadding)
+                        PagedSurface(layout, apps, actions, coverPager, onCreatePage = { controller.addPage() }, sidePadding = pageSidePadding)
                     }
                 }
                 Dock(layout.dock, apps, actions, onOpenDrawer = { sheet.open() }, modifier = Modifier.dragToOpenDrawer(sheet))
@@ -232,7 +237,7 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
                     hidden = session != null,
                     onAppInfo = { controller.openAppDetails(it) },
                     onOpenFolder = { overlay = Overlay.Folder(it) },
-                    onResize = { ref, dw, dh -> controller.resize(ref, dw, dh, theme.columns) },
+                    onResize = { ref, dw, dh -> controller.resize(ref, dw, dh, theme.columns, theme.rows) },
                     onRemove = { controller.remove(it) },
                     onLaunchShortcut = { controller.launchShortcut(it) },
                     onDismiss = { overlay = null },
