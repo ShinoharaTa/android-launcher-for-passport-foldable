@@ -1,0 +1,73 @@
+{
+  "id": "instrument",
+  "name": "INSTRUMENT",
+  "palette": {
+    "panel": "#FF1C1D1F",
+    "surface": "#FF232527",
+    "module": "#FF262829",
+    "dock": "#FF212324",
+    "line": "#FF000000",
+    "accent": "#FFE8792B",
+    "text": "#FFD8D6D2",
+    "textDim": "#FF8A8781",
+    "alt": "#FF7FA8C4",
+    "warn": "#FFD94A38"
+  },
+  "surface": {
+    "showWallpaper": false,
+    "gradient": {
+      "from": "#14FFFFFF",
+      "to": "#00000000",
+      "vertical": true
+    },
+    "light": false,
+    "blur": 0
+  },
+  "grid": {
+    "columns": 6,
+    "rows": 7,
+    "dockSlots": 6,
+    "folderColumns": 3,
+    "sidePadding": 8
+  },
+  "dock": {
+    "height": 80,
+    "padding": 6,
+    "inset": 12,
+    "style": "rail"
+  },
+  "insets": {
+    "top": 0,
+    "bottom": 0
+  },
+  "icon": {
+    "scale": 0.58,
+    "labels": false,
+    "shape": "rounded",
+    "tint": "none"
+  },
+  "widgets": {
+    "headers": true,
+    "radius": 3,
+    "shape": "rounded",
+    "variants": {
+      "clock": "odometer",
+      "status": "dial",
+      "usage": "vu"
+    }
+  },
+  "decor": {
+    "scanlines": false,
+    "zoneHeaders": true,
+    "hingeMarker": true,
+    "outlines": true,
+    "pageIndicator": true,
+    "texture": "brushed",
+    "outlineWidth": 1,
+    "shadow": "inset"
+  },
+  "typography": {
+    "ui": "sans",
+    "mono": "mono"
+  }
+}

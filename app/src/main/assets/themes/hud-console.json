@@ -1,0 +1,73 @@
+{
+  "id": "hud-console",
+  "name": "HUD CONSOLE",
+  "palette": {
+    "panel": "#F2060A10",
+    "surface": "#F5081018",
+    "module": "#CC0A1620",
+    "dock": "#B30A1620",
+    "line": "#5935E0D0",
+    "accent": "#FF35E0D0",
+    "text": "#FFCFE9EC",
+    "textDim": "#FF5E8A92",
+    "alt": "#FF7FE8FF",
+    "warn": "#FFFF8A3D"
+  },
+  "surface": {
+    "showWallpaper": false,
+    "gradient": {
+      "from": "#000E2A33",
+      "to": "#CC060A10",
+      "vertical": true
+    },
+    "light": false,
+    "blur": 0
+  },
+  "grid": {
+    "columns": 6,
+    "rows": 7,
+    "dockSlots": 6,
+    "folderColumns": 3,
+    "sidePadding": 8
+  },
+  "dock": {
+    "height": 72,
+    "padding": 2,
+    "inset": 12,
+    "style": "rail"
+  },
+  "insets": {
+    "top": 0,
+    "bottom": 0
+  },
+  "icon": {
+    "scale": 0.6,
+    "labels": false,
+    "shape": "rounded",
+    "tint": "none"
+  },
+  "widgets": {
+    "headers": true,
+    "radius": 10,
+    "shape": "clipped",
+    "variants": {
+      "clock": "hud",
+      "status": "segments",
+      "usage": "equalizer"
+    }
+  },
+  "decor": {
+    "scanlines": false,
+    "zoneHeaders": true,
+    "hingeMarker": true,
+    "outlines": true,
+    "pageIndicator": true,
+    "texture": "hatch",
+    "outlineWidth": 1,
+    "shadow": "glow"
+  },
+  "typography": {
+    "ui": "default",
+    "mono": "mono"
+  }
+}

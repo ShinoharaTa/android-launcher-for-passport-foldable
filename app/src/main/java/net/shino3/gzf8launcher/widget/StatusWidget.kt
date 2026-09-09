@@ -203,13 +203,15 @@ object StatusWidget {
                     size = arc,
                     style = Stroke(width = stroke, cap = StrokeCap.Butt),
                 )
-                // 針
+                // 針。数字に重ならないよう、中心から少し離した位置に短く引く
                 val angle = Math.toRadians((DIAL_START + DIAL_SWEEP * state.level / 100f).toDouble())
+                val dx = cos(angle).toFloat()
+                val dy = sin(angle).toFloat()
                 drawLine(
                     color = tone,
-                    start = c,
-                    end = Offset(c.x + (r * 0.72f) * cos(angle).toFloat(), c.y + (r * 0.72f) * sin(angle).toFloat()),
-                    strokeWidth = stroke * 0.4f,
+                    start = Offset(c.x + (r * NEEDLE_INNER) * dx, c.y + (r * NEEDLE_INNER) * dy),
+                    end = Offset(c.x + (r * NEEDLE_OUTER) * dx, c.y + (r * NEEDLE_OUTER) * dy),
+                    strokeWidth = stroke * 0.45f,
                     cap = StrokeCap.Round,
                 )
             }
@@ -251,6 +253,10 @@ object StatusWidget {
     /** 丸ゲージの目盛りの始まりと長さ(度)。左下から右下まで。 */
     private const val DIAL_START = 140f
     private const val DIAL_SWEEP = 260f
+
+    /** 針の内端と外端(半径に対する割合)。中心を空けて、真ん中の数字と重ならないようにする。 */
+    private const val NEEDLE_INNER = 0.60f
+    private const val NEEDLE_OUTER = 0.80f
 
     val widget = NativeWidget(
         spec,

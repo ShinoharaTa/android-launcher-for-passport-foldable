@@ -1,0 +1,69 @@
+{
+  "id": "eink-note",
+  "name": "E-INK NOTE",
+  "palette": {
+    "panel": "#FFE8E6E1",
+    "surface": "#FFF4F3F0",
+    "module": "#F2F4F3F0",
+    "dock": "#FFF4F3F0",
+    "line": "#FFC8C5BE",
+    "accent": "#FF22211E",
+    "text": "#FF22211E",
+    "textDim": "#FF85817A",
+    "alt": "#FF5A5751",
+    "warn": "#FF22211E"
+  },
+  "surface": {
+    "showWallpaper": false,
+    "gradient": null,
+    "light": true,
+    "blur": 0
+  },
+  "grid": {
+    "columns": 6,
+    "rows": 7,
+    "dockSlots": 6,
+    "folderColumns": 3,
+    "sidePadding": 8
+  },
+  "dock": {
+    "height": 74,
+    "padding": 2,
+    "inset": 24,
+    "style": "rail"
+  },
+  "insets": {
+    "top": 0,
+    "bottom": 0
+  },
+  "icon": {
+    "scale": 0.54,
+    "labels": true,
+    "shape": "rounded",
+    "tint": "mono"
+  },
+  "widgets": {
+    "headers": true,
+    "radius": 4,
+    "shape": "rounded",
+    "variants": {
+      "clock": "plain",
+      "status": "plain",
+      "usage": "leader"
+    }
+  },
+  "decor": {
+    "scanlines": false,
+    "zoneHeaders": true,
+    "hingeMarker": false,
+    "outlines": true,
+    "pageIndicator": true,
+    "texture": "dots",
+    "outlineWidth": 1,
+    "shadow": "none"
+  },
+  "typography": {
+    "ui": "serif",
+    "mono": "mono"
+  }
+}
