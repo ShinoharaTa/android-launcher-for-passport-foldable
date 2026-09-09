@@ -200,7 +200,7 @@ fun SideBySideSurface(
         Row(modifier = Modifier.fillMaxSize()) {
             Column(modifier = Modifier.width(leftWidth).fillMaxHeight()) {
                 ZoneHeader("BOARD // GLANCE")
-                WidgetsPage(layout.widgets, apps, actions, gestures, Modifier.weight(1f))
+                WidgetsPage(layout.widgets, apps, actions, gestures, Modifier.weight(1f), sidePadding = theme.sidePadding)
             }
             if (theme.decor.hingeMarker) {
                 Box(modifier = Modifier.width(maxOf(1.dp, gapWidth)).fillMaxHeight().background(theme.colors.line))
@@ -215,7 +215,7 @@ fun SideBySideSurface(
                     beyondViewportPageCount = 1,
                     key = { it },
                 ) { page ->
-                    AppPage(layout.pages.getOrElse(page) { Zone() }, page, apps, actions, gestures)
+                    AppPage(layout.pages.getOrElse(page) { Zone() }, page, apps, actions, gestures, sidePadding = theme.sidePadding)
                 }
                 if (theme.decor.pageIndicator) PageIndicator(appsPager)
             }

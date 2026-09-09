@@ -16,7 +16,9 @@
     "gradient": null,
     "light": true
   },
-  "grid": { "columns": 6, "rows": 7, "dockSlots": 6, "folderColumns": 3 },
+  "grid": { "columns": 6, "rows": 7, "dockSlots": 6, "folderColumns": 3, "sidePadding": 8 },
+  "dock": { "height": 76, "padding": 0, "inset": 20 },
+  "insets": { "top": 0, "bottom": 0 },
   "icon": { "scale": 0.56, "labels": true, "shape": "circle" },
   "widgets": {
     "headers": false,

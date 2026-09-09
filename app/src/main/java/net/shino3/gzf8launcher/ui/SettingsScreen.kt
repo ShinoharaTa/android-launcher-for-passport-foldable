@@ -45,6 +45,8 @@ fun SettingsScreen(
     onApplyTheme: (ThemeSpec) -> Unit,
     onFont: (FontChoice) -> Unit,
     onIconShape: (IconShape?) -> Unit,
+    /** 寸法の上書きを部分的に変える(#34)。 */
+    onOverrides: ((ThemeOverrides) -> ThemeOverrides) -> Unit,
     onClose: () -> Unit,
 ) {
     val theme = LocalLauncherTheme.current
@@ -82,11 +84,38 @@ fun SettingsScreen(
             }
             Note("SYSTEM は端末が切った形(Galaxy なら角丸四角)をそのまま出す。それ以外はアプリの背景と前景をこの形で切り直す。古い形式のアイコンは変わらない。")
 
+            SectionTitle("LAYOUT")
+            // 表示する値は上書きを重ねた後の実際の値(LocalLauncherTheme)。上書きが無い項目はテーマの値が出る
+            Stepper("SIDE PADDING", theme.sidePadding.value.toInt(), 0..48, 2, overrides.sidePadding != null) { v ->
+                onOverrides { it.copy(sidePadding = v) }
+            }
+            Stepper("DOCK HEIGHT", theme.dockHeight.value.toInt(), 48..120, 4, overrides.dockHeight != null) { v ->
+                onOverrides { it.copy(dockHeight = v) }
+            }
+            Stepper("DOCK PADDING", theme.dockPadding.value.toInt(), 0..24, 2, overrides.dockPadding != null) { v ->
+                onOverrides { it.copy(dockPadding = v) }
+            }
+            Stepper("DOCK INSET", theme.dockInset.value.toInt(), 0..80, 4, overrides.dockInset != null) { v ->
+                onOverrides { it.copy(dockInset = v) }
+            }
+            Stepper("TOP INSET", theme.insetTop.value.toInt(), 0..96, 4, overrides.insetTop != null) { v ->
+                onOverrides { it.copy(insetTop = v) }
+            }
+            Stepper("BOTTOM INSET", theme.insetBottom.value.toInt(), 0..96, 4, overrides.insetBottom != null) { v ->
+                onOverrides { it.copy(insetBottom = v) }
+            }
+            if (overrides.hasLayout) {
+                Row(modifier = Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.End) {
+                    TextAction("RESET ALL LAYOUT") { onOverrides { it.withoutLayout() } }
+                }
+            }
+            Note("SIDE PADDING はグリッドとドックの左右の余白。DOCK INSET はそこからレールを引っ込めて中央に寄せる量で、0 にするとグリッドと同じ幅になる。TOP / BOTTOM INSET はステータスバーとナビゲーションバーの内側に足す余白。アクセント色の値は設定で上書きしている。")
+
             SectionTitle("THEME")
             themes.forEach { spec ->
                 ThemeRow(spec, selected = spec.id == currentThemeId) { onApplyTheme(spec) }
             }
-            Note("同梱テーマを選ぶと内部ストレージの theme.json に書き出される。そのファイルを直接書き換えれば、ここに無い見た目も作れる。書体とアイコンの形の上書きはテーマとは別に残る。")
+            Note("同梱テーマを選ぶと内部ストレージの theme.json に書き出される。そのファイルを直接書き換えれば、ここに無い見た目も作れる。書体、アイコンの形、寸法の上書きはテーマとは別に残る。")
         }
     }
 }

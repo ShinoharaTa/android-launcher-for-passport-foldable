@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,6 +35,17 @@ import net.shino3.gzf8launcher.theme.LocalLauncherTheme
 /** 押せる最小の大きさ。 */
 val TAP_MIN: Dp = 44.dp
 
+/**
+ * タップを onClick に渡す。pointerInput の鍵は固定なので、再コンポーズで onClick が変わっても
+ * 最初のラムダを掴んだままになる。最新のものを読むように rememberUpdatedState を挟む。
+ * これが無いと、値を読んで次の値を決める押す場所(Stepper の −/+)が 1 回しか効かない(#34 で踏んだ)。
+ */
+@Composable
+private fun Modifier.tap(onClick: () -> Unit): Modifier {
+    val current = rememberUpdatedState(onClick)
+    return pointerInput(Unit) { detectTapGestures { current.value() } }
+}
+
 /** 絞り込みや設定の選択肢に使うチップ。選ばれているとアクセント色で塗る。 */
 @Composable
 fun Chip(label: String, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
@@ -45,7 +57,7 @@ fun Chip(label: String, selected: Boolean, modifier: Modifier = Modifier, onClic
             .clip(shape)
             .background(if (selected) theme.colors.accent else Color.Transparent)
             .border(1.dp, if (selected) theme.colors.accent else theme.colors.line, shape)
-            .pointerInput(label) { detectTapGestures { onClick() } }
+            .tap(onClick)
             .padding(horizontal = 14.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -66,7 +78,7 @@ fun TextAction(label: String, modifier: Modifier = Modifier, accent: Boolean = t
     Box(
         modifier = modifier
             .defaultMinSize(minWidth = TAP_MIN, minHeight = TAP_MIN)
-            .pointerInput(label) { detectTapGestures { onClick() } }
+            .tap(onClick)
             .padding(horizontal = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -80,6 +92,45 @@ fun TextAction(label: String, modifier: Modifier = Modifier, accent: Boolean = t
     }
 }
 
+/**
+ * 寸法を −/+ で変える 1 行(#34)。値は dp の整数。
+ * overridden が真なら設定で上書きされている値で、RESET でテーマの値に戻せる。
+ */
+@Composable
+fun Stepper(
+    label: String,
+    value: Int,
+    range: IntRange,
+    step: Int,
+    overridden: Boolean,
+    onChange: (Int?) -> Unit,
+) {
+    val theme = LocalLauncherTheme.current
+    androidx.compose.foundation.layout.Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = TAP_MIN),
+    ) {
+        Text(
+            text = label,
+            color = theme.colors.text,
+            fontFamily = theme.monoFont,
+            fontSize = 12.sp,
+            modifier = Modifier.weight(1f),
+        )
+        if (overridden) TextAction("RESET", accent = false) { onChange(null) }
+        TextAction("−", accent = value > range.first) { if (value > range.first) onChange((value - step).coerceAtLeast(range.first)) }
+        Text(
+            text = "${value}dp",
+            color = if (overridden) theme.colors.accent else theme.colors.text,
+            fontFamily = theme.monoFont,
+            fontSize = 12.sp,
+            modifier = Modifier.defaultMinSize(minWidth = 52.dp),
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        )
+        TextAction("+", accent = value < range.last) { if (value < range.last) onChange((value + step).coerceAtMost(range.last)) }
+    }
+}
+
 /** メニューの 1 行。行全体が押せる。 */
 @Composable
 fun MenuRow(label: String, accent: Boolean = false, onClick: () -> Unit) {
@@ -88,7 +139,7 @@ fun MenuRow(label: String, accent: Boolean = false, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .defaultMinSize(minHeight = 48.dp)
-            .pointerInput(label) { detectTapGestures { onClick() } }
+            .tap(onClick)
             .padding(horizontal = 16.dp),
         contentAlignment = Alignment.CenterStart,
     ) {
