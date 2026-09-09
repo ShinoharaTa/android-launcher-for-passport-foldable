@@ -24,6 +24,8 @@ data class LauncherTheme(
     val dockHeight: Dp = 76.dp,
     /** ドックのレールの縁からアイコンまでの余白。 */
     val dockPadding: Dp = 0.dp,
+    /** グリッドの外縁からレールを引っ込める量。中央寄せの度合い。 */
+    val dockInset: Dp = 20.dp,
     /** システムバーの内側に足す上下の余白。 */
     val insetTop: Dp = 0.dp,
     val insetBottom: Dp = 0.dp,
@@ -91,14 +93,16 @@ data class ThemeOverrides(
     val sidePadding: Int? = null,
     val dockHeight: Int? = null,
     val dockPadding: Int? = null,
+    val dockInset: Int? = null,
     val insetTop: Int? = null,
     val insetBottom: Int? = null,
 ) {
     /** 寸法の上書きを何も持っていないか。設定画面の RESET の表示に使う。 */
     val hasLayout: Boolean
-        get() = sidePadding != null || dockHeight != null || dockPadding != null || insetTop != null || insetBottom != null
+        get() = sidePadding != null || dockHeight != null || dockPadding != null || dockInset != null || insetTop != null || insetBottom != null
 
-    fun withoutLayout(): ThemeOverrides = copy(sidePadding = null, dockHeight = null, dockPadding = null, insetTop = null, insetBottom = null)
+    fun withoutLayout(): ThemeOverrides =
+        copy(sidePadding = null, dockHeight = null, dockPadding = null, dockInset = null, insetTop = null, insetBottom = null)
 }
 
 fun ThemeSpec.toTheme(overrides: ThemeOverrides = ThemeOverrides()): LauncherTheme = LauncherTheme(
@@ -111,6 +115,7 @@ fun ThemeSpec.toTheme(overrides: ThemeOverrides = ThemeOverrides()): LauncherThe
     sidePadding = (overrides.sidePadding ?: grid.sidePadding).dp,
     dockHeight = (overrides.dockHeight ?: dock.height).dp,
     dockPadding = (overrides.dockPadding ?: dock.padding).dp,
+    dockInset = (overrides.dockInset ?: dock.inset).dp,
     insetTop = (overrides.insetTop ?: insets.top).dp,
     insetBottom = (overrides.insetBottom ?: insets.bottom).dp,
     showLabels = icon.labels,

@@ -95,6 +95,9 @@ fun SettingsScreen(
             Stepper("DOCK PADDING", theme.dockPadding.value.toInt(), 0..24, 2, overrides.dockPadding != null) { v ->
                 onOverrides { it.copy(dockPadding = v) }
             }
+            Stepper("DOCK INSET", theme.dockInset.value.toInt(), 0..80, 4, overrides.dockInset != null) { v ->
+                onOverrides { it.copy(dockInset = v) }
+            }
             Stepper("TOP INSET", theme.insetTop.value.toInt(), 0..96, 4, overrides.insetTop != null) { v ->
                 onOverrides { it.copy(insetTop = v) }
             }
@@ -106,7 +109,7 @@ fun SettingsScreen(
                     TextAction("RESET ALL LAYOUT") { onOverrides { it.withoutLayout() } }
                 }
             }
-            Note("SIDE PADDING はグリッドとドックの左右の余白で、ドックのレールの幅はグリッドに揃う。TOP / BOTTOM INSET はステータスバーとナビゲーションバーの内側に足す余白。アクセント色の値は設定で上書きしている。")
+            Note("SIDE PADDING はグリッドとドックの左右の余白。DOCK INSET はそこからレールを引っ込めて中央に寄せる量で、0 にするとグリッドと同じ幅になる。TOP / BOTTOM INSET はステータスバーとナビゲーションバーの内側に足す余白。アクセント色の値は設定で上書きしている。")
 
             SectionTitle("THEME")
             themes.forEach { spec ->

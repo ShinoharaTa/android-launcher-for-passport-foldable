@@ -61,6 +61,7 @@ class ThemeRepository(private val context: Context) {
             putInt(KEY_SIDE_PADDING, overrides.sidePadding ?: UNSET)
             putInt(KEY_DOCK_HEIGHT, overrides.dockHeight ?: UNSET)
             putInt(KEY_DOCK_PADDING, overrides.dockPadding ?: UNSET)
+            putInt(KEY_DOCK_INSET, overrides.dockInset ?: UNSET)
             putInt(KEY_INSET_TOP, overrides.insetTop ?: UNSET)
             putInt(KEY_INSET_BOTTOM, overrides.insetBottom ?: UNSET)
         }
@@ -79,6 +80,7 @@ class ThemeRepository(private val context: Context) {
         sidePadding = readDp(KEY_SIDE_PADDING),
         dockHeight = readDp(KEY_DOCK_HEIGHT),
         dockPadding = readDp(KEY_DOCK_PADDING),
+        dockInset = readDp(KEY_DOCK_INSET),
         insetTop = readDp(KEY_INSET_TOP),
         insetBottom = readDp(KEY_INSET_BOTTOM),
     )
@@ -106,6 +108,7 @@ class ThemeRepository(private val context: Context) {
         private const val KEY_SIDE_PADDING = "sidePadding"
         private const val KEY_DOCK_HEIGHT = "dockHeight"
         private const val KEY_DOCK_PADDING = "dockPadding"
+        private const val KEY_DOCK_INSET = "dockInset"
         private const val KEY_INSET_TOP = "insetTop"
         private const val KEY_INSET_BOTTOM = "insetBottom"
         /** 寸法の上書きが無いことを表す値。dp は負にならない。 */
