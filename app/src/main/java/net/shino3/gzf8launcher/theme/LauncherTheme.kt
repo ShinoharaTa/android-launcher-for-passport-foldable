@@ -19,6 +19,14 @@ data class LauncherTheme(
     val rows: Int = 7,
     val dockSlots: Int = 6,
     val folderColumns: Int = 3,
+    /** グリッドとドックの左右の余白。縦長メインではこれに広げる分を足す(#34)。 */
+    val sidePadding: Dp = 8.dp,
+    val dockHeight: Dp = 76.dp,
+    /** ドックのレールの縁からアイコンまでの余白。 */
+    val dockPadding: Dp = 0.dp,
+    /** システムバーの内側に足す上下の余白。 */
+    val insetTop: Dp = 0.dp,
+    val insetBottom: Dp = 0.dp,
     val showLabels: Boolean = false,
     val iconScale: Float = 0.62f,
     val iconShape: IconShape = IconShape.SYSTEM,
@@ -74,13 +82,24 @@ private fun fontFamily(name: String): FontFamily = when (name) {
 enum class FontChoice(val label: String) { THEME("THEME"), SYSTEM("SYSTEM") }
 
 /**
- * 設定画面からの上書き(#32)。theme.json とは別に持ち、テーマを切り替えても残る。
- * iconShape が null ならテーマの指定に従う。
+ * 設定画面からの上書き(#32、#34)。theme.json とは別に持ち、テーマを切り替えても残る。
+ * null の項目はテーマの指定に従う。寸法は dp の整数。
  */
 data class ThemeOverrides(
     val font: FontChoice = FontChoice.THEME,
     val iconShape: IconShape? = null,
-)
+    val sidePadding: Int? = null,
+    val dockHeight: Int? = null,
+    val dockPadding: Int? = null,
+    val insetTop: Int? = null,
+    val insetBottom: Int? = null,
+) {
+    /** 寸法の上書きを何も持っていないか。設定画面の RESET の表示に使う。 */
+    val hasLayout: Boolean
+        get() = sidePadding != null || dockHeight != null || dockPadding != null || insetTop != null || insetBottom != null
+
+    fun withoutLayout(): ThemeOverrides = copy(sidePadding = null, dockHeight = null, dockPadding = null, insetTop = null, insetBottom = null)
+}
 
 fun ThemeSpec.toTheme(overrides: ThemeOverrides = ThemeOverrides()): LauncherTheme = LauncherTheme(
     id = id,
@@ -89,6 +108,11 @@ fun ThemeSpec.toTheme(overrides: ThemeOverrides = ThemeOverrides()): LauncherThe
     rows = grid.rows,
     dockSlots = grid.dockSlots,
     folderColumns = grid.folderColumns,
+    sidePadding = (overrides.sidePadding ?: grid.sidePadding).dp,
+    dockHeight = (overrides.dockHeight ?: dock.height).dp,
+    dockPadding = (overrides.dockPadding ?: dock.padding).dp,
+    insetTop = (overrides.insetTop ?: insets.top).dp,
+    insetBottom = (overrides.insetBottom ?: insets.bottom).dp,
     showLabels = icon.labels,
     iconScale = icon.scale,
     iconShape = overrides.iconShape ?: icon.shape,

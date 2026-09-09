@@ -58,6 +58,11 @@ class ThemeRepository(private val context: Context) {
         prefs.edit {
             putString(KEY_FONT, overrides.font.name)
             putString(KEY_ICON_SHAPE, overrides.iconShape?.name ?: "")
+            putInt(KEY_SIDE_PADDING, overrides.sidePadding ?: UNSET)
+            putInt(KEY_DOCK_HEIGHT, overrides.dockHeight ?: UNSET)
+            putInt(KEY_DOCK_PADDING, overrides.dockPadding ?: UNSET)
+            putInt(KEY_INSET_TOP, overrides.insetTop ?: UNSET)
+            putInt(KEY_INSET_BOTTOM, overrides.insetBottom ?: UNSET)
         }
         publish()
     }
@@ -71,7 +76,14 @@ class ThemeRepository(private val context: Context) {
         font = prefs.getString(KEY_FONT, null)?.let { name -> FontChoice.entries.firstOrNull { it.name == name } }
             ?: FontChoice.THEME,
         iconShape = prefs.getString(KEY_ICON_SHAPE, null)?.let { name -> IconShape.entries.firstOrNull { it.name == name } },
+        sidePadding = readDp(KEY_SIDE_PADDING),
+        dockHeight = readDp(KEY_DOCK_HEIGHT),
+        dockPadding = readDp(KEY_DOCK_PADDING),
+        insetTop = readDp(KEY_INSET_TOP),
+        insetBottom = readDp(KEY_INSET_BOTTOM),
     )
+
+    private fun readDp(key: String): Int? = prefs.getInt(key, UNSET).takeIf { it != UNSET }
 
     private fun readAsset(path: String): ThemeSpec? =
         runCatching { context.assets.open(path).bufferedReader().use { it.readText() } }
@@ -91,6 +103,13 @@ class ThemeRepository(private val context: Context) {
         private const val PREFS_NAME = "settings"
         private const val KEY_FONT = "font"
         private const val KEY_ICON_SHAPE = "iconShape"
+        private const val KEY_SIDE_PADDING = "sidePadding"
+        private const val KEY_DOCK_HEIGHT = "dockHeight"
+        private const val KEY_DOCK_PADDING = "dockPadding"
+        private const val KEY_INSET_TOP = "insetTop"
+        private const val KEY_INSET_BOTTOM = "insetBottom"
+        /** 寸法の上書きが無いことを表す値。dp は負にならない。 */
+        private const val UNSET = -1
 
         val json = Json {
             ignoreUnknownKeys = true

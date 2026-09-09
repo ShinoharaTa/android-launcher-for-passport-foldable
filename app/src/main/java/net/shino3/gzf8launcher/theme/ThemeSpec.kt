@@ -14,6 +14,8 @@ data class ThemeSpec(
     val palette: Palette,
     val surface: SurfaceSpec = SurfaceSpec(),
     val grid: GridSpec = GridSpec(),
+    val dock: DockSpec = DockSpec(),
+    val insets: InsetsSpec = InsetsSpec(),
     val icon: IconSpec = IconSpec(),
     val widgets: WidgetsSpec = WidgetsSpec(),
     val decor: DecorSpec = DecorSpec(),
@@ -56,7 +58,22 @@ data class GridSpec(
     val rows: Int = 7,
     val dockSlots: Int = 6,
     val folderColumns: Int = 3,
+    /** グリッドとドックの左右の余白 dp。両方で同じ値を使い、ドックのレールの幅をグリッドに揃える(#34)。 */
+    val sidePadding: Int = 8,
 )
+
+/** ドックのレール(#34)。 */
+@Serializable
+data class DockSpec(
+    /** レールの高さ dp。 */
+    val height: Int = 76,
+    /** レールの縁からアイコンまでの余白 dp。 */
+    val padding: Int = 0,
+)
+
+/** 画面の上下に足す余白 dp。システムバーの分は別に取るので、その内側の余白(#34)。 */
+@Serializable
+data class InsetsSpec(val top: Int = 0, val bottom: Int = 0)
 
 @Serializable
 data class IconSpec(

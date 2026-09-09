@@ -156,6 +156,9 @@ class LauncherController(private val context: Context, private val scope: Corout
     /** null でテーマの指定に戻す。 */
     fun setIconShape(shape: IconShape?) = themeRepository.setOverrides(overrides.value.copy(iconShape = shape))
 
+    /** 寸法などの上書きを部分的に変える(#34)。 */
+    fun updateOverrides(transform: (ThemeOverrides) -> ThemeOverrides) = themeRepository.setOverrides(transform(overrides.value))
+
     fun requestUsagePermission() {
         context.startActivity(usageRepository.settingsIntent())
     }

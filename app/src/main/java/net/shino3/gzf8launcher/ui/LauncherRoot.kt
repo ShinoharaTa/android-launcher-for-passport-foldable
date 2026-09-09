@@ -188,7 +188,8 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
     // 開いて縦長にしたときは 1 ページずつ。余白を広げて置く
     val isTallMain = !isCover && containerSize.height > containerSize.width
     val sideBySide = !isCover && !isTallMain
-    val pageSidePadding = if (isTallMain) 40.dp else 8.dp
+    // 左右の余白はテーマと設定の値。縦長メインは 1 ページずつなので、それに広げる分を足す(#34)
+    val pageSidePadding = theme.sidePadding + (if (isTallMain) TALL_MAIN_EXTRA_SIDE else 0.dp)
     val gridWidthPx = (containerSize.width / (if (sideBySide) 2 else 1)) - with(density) { (pageSidePadding * 2).toPx() }
     val cellPx = gridWidthPx / theme.columns
     val session = drag.session
@@ -243,8 +244,8 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
                         alpha = 1f - 0.7f * p
                     }
                     .systemBarsPadding()
-                    // ドラッグ中は上端の削除先ぶんだけ下がり、先頭の段が削除先に隠れないようにする
-                    .padding(top = removeInset),
+                    // 画面の上下の余白(#34)。ドラッグ中は上端の削除先ぶんだけさらに下がり、先頭の段が削除先に隠れないようにする
+                    .padding(top = theme.insetTop + removeInset, bottom = theme.insetBottom),
             ) {
                 // 面ごとの上スワイプ(ドロワー)と下スワイプ(検索)は HomePages 側で受ける(#25)
                 Box(
@@ -259,7 +260,14 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
                     }
                 }
                 // ドックはどの面でも上スワイプでドロワー、下スワイプで検索
-                Dock(layout.dock, apps, actions, modifier = Modifier.homeVerticalGestures(sheet, onSearch))
+                Dock(
+                    items = layout.dock,
+                    apps = apps,
+                    actions = actions,
+                    // 横長メインは左右のページを合わせた幅、それ以外はページと同じ幅にレールを揃える
+                    sidePadding = if (sideBySide) theme.sidePadding else pageSidePadding,
+                    modifier = Modifier.homeVerticalGestures(sheet, onSearch),
+                )
             }
 
             if (theme.decor.scanlines) Scanlines(theme.colors.line.copy(alpha = 0.06f))
@@ -302,6 +310,7 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
                     onApplyTheme = { controller.applyTheme(it) },
                     onFont = { controller.setFont(it) },
                     onIconShape = { controller.setIconShape(it) },
+                    onOverrides = { transform -> controller.updateOverrides(transform) },
                     onClose = { overlay = null },
                 )
                 is Overlay.Home -> HomeMenu(
@@ -358,6 +367,9 @@ private const val DWELL_MILLIS = 500L
 
 /** ドラッグ中に上端へ出る削除先の高さ。ホームはこのぶん下がる。 */
 private val REMOVE_BAR_HEIGHT = 56.dp
+
+/** 開いて縦長にしたときに、左右の余白へ足す分。1 ページずつ見せるので広めに取る。 */
+private val TALL_MAIN_EXTRA_SIDE = 32.dp
 
 /**
  * ウィンドウ側の見た目をテーマに合わせる。
