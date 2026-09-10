@@ -28,6 +28,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -105,6 +106,8 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
     var overlay by remember { mutableStateOf<Overlay?>(null) }
     // 編集モード(#46)。空き領域の長押しで入り、Back / DONE / HOME キーで抜ける
     var editing by remember { mutableStateOf(false) }
+    // 編集モードで選んでいるウィジェット。つまみはこの 1 つにだけ出す(#47)
+    var selected by remember { mutableStateOf<ItemRef?>(null) }
     // 閉じる動きを見せるため、消えたあとも終わるまで描き続ける
     var rendered by remember { mutableStateOf<Overlay?>(null) }
     LaunchedEffect(overlay) {
@@ -154,11 +157,15 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
     LaunchedEffect(sheet.progress > 0f) { if (sheet.progress == 0f) searchFocus = false }
     val gestures = remember(sheet, onSearch) { HomeGestures(sheet, onSearch) }
     val view = LocalView.current
+    // actions は remember で作るため、編集中かどうかは最新の値を読む入れ物越しに見る
+    val editingNow = rememberUpdatedState(editing)
     val actions = remember(controller, view) {
         ItemActions(
             onLaunch = { entry, bounds -> controller.launch(entry, bounds.toAndroidRect(), view.scaleUpOptions(bounds)) },
-            onOpenFolder = { ref, bounds -> overlay = Overlay.Folder(ref, bounds) },
+            onOpenFolder = { ref, bounds -> if (editingNow.value) selected = ref else overlay = Overlay.Folder(ref, bounds) },
             onRemove = { controller.remove(it) },
+            onResize = { ref, dw, dh -> controller.resizeBy(ref, dw, dh, theme.columns, theme.rows) },
+            onSelect = { selected = if (selected == it) null else it },
             resolveShortcut = { controller.resolveShortcut(it) },
             onLaunchShortcut = { item, bounds -> controller.launchShortcut(item, bounds.toAndroidRect(), view.scaleUpOptions(bounds)) },
         )
@@ -175,13 +182,14 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
         when {
             overlay != null -> overlay = null
             sheet.progress > 0f -> sheet.close()
-            else -> editing = false
+            else -> { editing = false; selected = null }
         }
     }
     LaunchedEffect(controller) {
         controller.homeSignal.collect {
             overlay = null
             editing = false
+            selected = null
             sheet.close()
             coverPager.animateScrollToPage(1)
             appsPager.animateScrollToPage(0)
@@ -229,6 +237,7 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
         LocalAppWidgetHost provides controller.appWidgets,
         LocalDropPreview provides preview,
         LocalEditMode provides editing,
+        LocalSelectedItem provides selected,
     ) {
         Box(
             modifier = Modifier
@@ -279,7 +288,7 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
                         onOpenWallpaper = { controller.openWallpaperPicker() },
                         onOpenWidgets = { overlay = Overlay.Widgets(Rect.Zero) },
                         onOpenSettings = { overlay = Overlay.Settings(Rect.Zero) },
-                        onDone = { editing = false },
+                        onDone = { editing = false; selected = null },
                     )
                 }
             }
