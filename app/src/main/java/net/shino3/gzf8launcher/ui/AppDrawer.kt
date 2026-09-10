@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -30,6 +31,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -56,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import net.shino3.gzf8launcher.data.AppEntry
 import net.shino3.gzf8launcher.data.UsageRepository
+import net.shino3.gzf8launcher.model.AppKey
 import net.shino3.gzf8launcher.model.AppItem
 import net.shino3.gzf8launcher.theme.LocalLauncherTheme
 import net.shino3.gzf8launcher.ui.drag.DragPayload
@@ -87,6 +90,8 @@ fun AppDrawer(
     val theme = LocalLauncherTheme.current
     var query by remember { mutableStateOf("") }
     var filter by remember { mutableStateOf<DrawerFilter?>(null) }
+    // 複数選択(#48)。長押しで入り、以降はタップで出し入れする
+    var picked by remember { mutableStateOf<Set<AppKey>>(emptySet()) }
     val gridState = rememberLazyGridState()
     val chips = remember(apps) { availableFilters(apps) }
     val shown = remember(apps, usage, query, filter) { applyFilter(filterApps(apps, query), filter, usage) }
@@ -94,6 +99,8 @@ fun AppDrawer(
 
     // 検索語や絞り込みが変わったら先頭に戻す
     LaunchedScrollReset(query, filter, gridState)
+    // ドロワーを閉じたら選択も解く
+    LaunchedEffect(sheet.progress == 0f) { if (sheet.progress == 0f) picked = emptySet() }
 
     Column(
         modifier = Modifier
@@ -112,6 +119,9 @@ fun AppDrawer(
             onSubmit = { shown.firstOrNull()?.let { onLaunch(it, Rect.Zero) } },
         )
         FilterChips(chips = chips, selected = filter, onSelect = { filter = if (filter == it) null else it })
+        if (picked.isNotEmpty()) {
+            SelectionBar(count = picked.size) { picked = emptySet() }
+        }
         if (needsUsage && !usagePermitted) {
             UsagePermissionRow(onRequestUsagePermission)
         }
@@ -125,18 +135,32 @@ fun AppDrawer(
             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
         ) {
             items(shown, key = { it.key.toString() }) { entry ->
-                AppCell(
-                    entry = entry,
-                    fallback = entry.label,
-                    showLabel = true,
-                    modifier = Modifier
-                        .aspectRatio(0.85f)
-                        .dragSource(
-                            payload = DragPayload(toItem(entry), null, entry.icon, entry.label),
-                            enabled = !hidden,
-                            onTap = { bounds -> onLaunch(entry, bounds) },
-                        ),
-                )
+                val selected = entry.key in picked
+                // 選択中は、つまんだ 1 つに残りを載せて束として運ぶ
+                val bundle = if (selected) shown.filter { it.key in picked && it.key != entry.key }.map(toItem) else emptyList()
+                Box(modifier = Modifier.aspectRatio(0.85f)) {
+                    AppCell(
+                        entry = entry,
+                        fallback = entry.label,
+                        showLabel = true,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .dragSource(
+                                payload = DragPayload(toItem(entry), null, entry.icon, entry.label, rest = bundle, menu = false),
+                                enabled = !hidden,
+                                onTap = { bounds ->
+                                    // 選択中はタップで出し入れ。そうでなければ起動
+                                    if (picked.isEmpty()) {
+                                        onLaunch(entry, bounds)
+                                    } else {
+                                        picked = if (selected) picked - entry.key else picked + entry.key
+                                    }
+                                },
+                                onLongPress = { picked = picked + entry.key },
+                            ),
+                    )
+                    if (selected) SelectedMark(modifier = Modifier.align(Alignment.TopEnd))
+                }
             }
         }
     }
@@ -338,5 +362,40 @@ private fun UsagePermissionRow(onRequest: () -> Unit) {
             fontFamily = theme.monoFont,
             fontSize = 12.sp,
         )
+    }
+}
+
+/** 選択中に上部へ出す帯。数と、まとめて解く入口を持つ(#48)。 */
+@Composable
+private fun SelectionBar(count: Int, onClear: () -> Unit) {
+    val theme = LocalLauncherTheme.current
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+    ) {
+        Text(
+            text = "$count SELECTED  //  DRAG TO HOME",
+            color = theme.colors.accent,
+            fontFamily = theme.monoFont,
+            fontSize = 11.sp,
+            modifier = Modifier.weight(1f),
+        )
+        TextAction("CLEAR") { onClear() }
+    }
+}
+
+/** 選ばれているアプリに付ける印。 */
+@Composable
+private fun SelectedMark(modifier: Modifier = Modifier) {
+    val theme = LocalLauncherTheme.current
+    Box(
+        modifier = modifier
+            .padding(2.dp)
+            .size(18.dp)
+            .clip(CircleShape)
+            .background(theme.colors.accent),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text("✓", color = theme.colors.surface.copy(alpha = 1f), fontFamily = theme.monoFont, fontSize = 11.sp)
     }
 }

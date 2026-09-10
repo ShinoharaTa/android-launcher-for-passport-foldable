@@ -206,6 +206,25 @@ class LauncherController(private val context: Context, private val scope: Corout
         }
         val current = layout.value
         val base = p.source?.let { LayoutEditor.remove(current, it) } ?: current
+        // ドロワーで複数選んだ束(#48)。落とした場所から順に空きへ並べ、あふれたら次のページへ
+        if (p.rest.isNotEmpty() && target is DropTarget.Grid) {
+            val (col, row) = target.cellFor(session.position, 1, 1)
+            var (placedLayout, left) = LayoutEditor.dropMany(
+                base, target.zone, col, row, listOf(p.item) + p.rest, target.columns, target.rows,
+            )
+            var guard = 0
+            while (left.isNotEmpty() && guard++ < MAX_OVERFLOW_PAGES) {
+                val index = ((target.zone as? ZoneId.Page)?.index ?: 0) + guard
+                if (index >= placedLayout.pages.size) placedLayout = placedLayout.withNewPage()
+                val spill = LayoutEditor.dropMany(
+                    placedLayout, ZoneId.Page(index), 0, 0, left, target.columns, target.rows,
+                )
+                placedLayout = spill.first
+                left = spill.second
+            }
+            edit { placedLayout }
+            return true
+        }
         val next = when (target) {
             is DropTarget.Grid -> {
                 val (col, row) = target.cellFor(session.position, p.w, p.h)
@@ -351,3 +370,6 @@ class LauncherController(private val context: Context, private val scope: Corout
 }
 
 private const val TAG = "LauncherController"
+
+/** 束があふれたときに作り足すページの上限。無限に増やさないための歯止め。 */
+private const val MAX_OVERFLOW_PAGES = 8
