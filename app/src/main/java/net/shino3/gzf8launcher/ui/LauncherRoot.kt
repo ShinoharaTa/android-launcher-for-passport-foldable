@@ -9,7 +9,6 @@ import android.view.WindowManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
@@ -218,8 +217,6 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
         null
     }
 
-    val removeInset by animateDpAsState(if (session != null) REMOVE_BAR_HEIGHT else 0.dp, label = "removeInset")
-
     CompositionLocalProvider(
         LocalDragController provides drag,
         LocalAppWidgetHost provides controller.appWidgets,
@@ -244,8 +241,8 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
                         alpha = 1f - 0.7f * p
                     }
                     .systemBarsPadding()
-                    // 画面の上下の余白(#34)。ドラッグ中は上端の削除先ぶんだけさらに下がり、先頭の段が削除先に隠れないようにする
-                    .padding(top = theme.insetTop + removeInset, bottom = theme.insetBottom),
+                    // 画面の上下の余白(#34)。ドラッグ中も動かさない。動かすと、つまんだ指の下でアイテムがずれる(#44)
+                    .padding(top = theme.insetTop, bottom = theme.insetBottom),
             ) {
                 // 面ごとの上スワイプ(ドロワー)と下スワイプ(検索)は HomePages 側で受ける(#25)
                 Box(
@@ -298,9 +295,6 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
                 }
             }
 
-            if (session != null) {
-                Box(modifier = Modifier.fillMaxWidth().systemBarsPadding(), contentAlignment = Alignment.TopCenter) { RemoveBar() }
-            }
             val visible = overlay != null
             when (val current = rendered) {
                 is Overlay.Settings -> SettingsScreen(
@@ -351,7 +345,6 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
                     onAppInfo = { controller.openAppDetails(it) },
                     onUninstall = { controller.uninstall(it) },
                     onOpenFolder = { overlay = Overlay.Folder(it, current.source) },
-                    onResize = { ref, dw, dh -> controller.resize(ref, dw, dh, theme.columns, theme.rows) },
                     onRemove = { controller.remove(it) },
                     onLaunchShortcut = { item, bounds -> controller.launchShortcut(item, bounds.toAndroidRect(), view.scaleUpOptions(bounds)) },
                     onDismiss = { overlay = null },
@@ -366,9 +359,6 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
 
 /** 同じ場所に留めてフォルダにまとめる印が立つまでの時間。 */
 private const val DWELL_MILLIS = 500L
-
-/** ドラッグ中に上端へ出る削除先の高さ。ホームはこのぶん下がる。 */
-private val REMOVE_BAR_HEIGHT = 56.dp
 
 /** 開いて縦長にしたときに、左右の余白へ足す分。1 ページずつ見せるので広めに取る。 */
 private val TALL_MAIN_EXTRA_SIDE = 32.dp
@@ -435,19 +425,3 @@ private fun View.scaleUpOptions(bounds: Rect): Bundle? {
 private fun Rect.toAndroidRect(): AndroidRect? =
     if (isEmpty) null else AndroidRect(left.toInt(), top.toInt(), right.toInt(), bottom.toInt())
 
-/** ドラッグ中だけ画面上端に出る削除先。 */
-@Composable
-private fun RemoveBar() {
-    val theme = LocalLauncherTheme.current
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(REMOVE_BAR_HEIGHT)
-            .background(theme.colors.surface)
-            .border(1.dp, theme.colors.accent)
-            .dropTarget("remove") { DropTarget.Remove(it) },
-        contentAlignment = Alignment.Center,
-    ) {
-        Text("DROP HERE TO REMOVE", color = theme.colors.accent, fontFamily = theme.monoFont, fontSize = 12.sp)
-    }
-}
