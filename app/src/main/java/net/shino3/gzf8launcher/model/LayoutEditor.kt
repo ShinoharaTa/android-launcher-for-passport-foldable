@@ -133,6 +133,45 @@ object LayoutEditor {
         return if (dropOnDock(base, slot, item, slots, dwell = false) != null) DropKind.PLACE else DropKind.REJECT
     }
 
+    /**
+     * 束をまとめて置く(#48)。落とした場所から順に、空きセルへ 1 つずつ入れる。
+     * 入りきらなかったものは残りとして返し、呼び出し側が次のページへ回す。
+     */
+    fun dropMany(
+        layout: Layout,
+        zoneId: ZoneId,
+        col: Int,
+        row: Int,
+        items: List<Item>,
+        columns: Int,
+        rows: Int?,
+    ): Pair<Layout, List<Item>> {
+        var current = layout
+        val left = mutableListOf<Item>()
+        // 落とした場所を起点に、行を右へ、尽きたら次の行へ
+        var cursor = row * columns + col
+        val limit = rows?.let { it * columns } ?: Int.MAX_VALUE
+        items.forEach { item ->
+            var placed = false
+            var i = cursor
+            while (i < limit) {
+                val c = i % columns
+                val r = i / columns
+                val next = dropOnGrid(current, zoneId, c, r, item, 1, 1, columns, rows, dwell = false)
+                // 押しのけずに、空いているところだけに入れる。まとめ置きで既存の配置を崩さない
+                if (next != null && current.zone(zoneId).items.none { it.contains(c, r) }) {
+                    current = next
+                    cursor = i + 1
+                    placed = true
+                    break
+                }
+                i++
+            }
+            if (!placed) left += item
+        }
+        return current to left
+    }
+
     fun dropOnDock(layout: Layout, slot: Int, item: Item, slots: Int, dwell: Boolean = false): Layout? {
         if (item !is AppItem && item !is FolderItem) return null
         val dock = layout.dock
