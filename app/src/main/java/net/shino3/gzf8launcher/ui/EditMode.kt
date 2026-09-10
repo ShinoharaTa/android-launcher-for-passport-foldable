@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import net.shino3.gzf8launcher.model.ItemRef
 import net.shino3.gzf8launcher.theme.LocalLauncherTheme
 
 /**
@@ -38,6 +39,12 @@ import net.shino3.gzf8launcher.theme.LocalLauncherTheme
  * 入っているかどうかは画面のあちこちが見るので、CompositionLocal で配る。
  */
 val LocalEditMode = compositionLocalOf { false }
+
+/**
+ * 編集モード中に選ばれているアイテム(#47)。
+ * ウィジェットのつまみは、選ばれている 1 つにだけ出す。全部に出すと画面が点だらけになる。
+ */
+val LocalSelectedItem = compositionLocalOf<ItemRef?> { null }
 
 /**
  * 編集モード中の揺れ。
