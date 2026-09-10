@@ -173,6 +173,8 @@ data class DecorSpec(
     val outlines: Boolean = true,
     /** カバーでページをめくるときの現在位置の点。 */
     val pageIndicator: Boolean = true,
+    /** 編集モード中にアイテムを揺らすか(#46)。動きが苦手なら切れる。 */
+    val jiggle: Boolean = true,
     /** 下地に敷く模様(#40)。未指定なら scanlines から決める。 */
     val texture: Texture? = null,
     /** 枠線の太さ dp(#40)。 */

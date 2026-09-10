@@ -3,6 +3,7 @@ package net.shino3.gzf8launcher.ui.drag
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
+import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
 import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.runtime.Composable
@@ -27,6 +28,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import net.shino3.gzf8launcher.model.Item
 import net.shino3.gzf8launcher.model.ItemRef
 import net.shino3.gzf8launcher.model.ZoneId
+import net.shino3.gzf8launcher.ui.LocalEditMode
 
 /** ドラッグで運ぶもの。source が null ならドロワーやウィジェット一覧など、レイアウト外から来た。 */
 data class DragPayload(
@@ -177,11 +179,32 @@ fun Modifier.dragSource(
     // pointerInput の鍵にすると進行中のジェスチャが途中で切られ、end() が呼ばれずに影が残る
     val enabledNow = rememberUpdatedState(enabled)
     val onTapNow = rememberUpdatedState(onTap)
+    // 編集モード中は長押しを待たずにつまめる。タップでの起動は止める(#46)
+    val editingNow = rememberUpdatedState(LocalEditMode.current)
     return this
         .onGloballyPositioned { bounds = it.boundsInRoot() }
         .pointerInput(payload) {
             awaitEachGesture {
                 val down = awaitFirstDown(requireUnconsumed = false)
+                if (enabledNow.value && editingNow.value) {
+                    // 触れた指がずれた時点で運び始める。長押しの待ちを挟まない
+                    val moved = awaitTouchSlopOrCancellation(down.id) { change, _ -> change.consume() }
+                    if (moved != null) {
+                        controller.begin(payload, bounds.topLeft + moved.position, bounds)
+                        var finished = false
+                        try {
+                            drag(moved.id) { change ->
+                                controller.move(change.positionChange())
+                                change.consume()
+                            }
+                            finished = true
+                            controller.end()
+                        } finally {
+                            if (!finished) controller.cancel()
+                        }
+                    }
+                    return@awaitEachGesture
+                }
                 if (!enabledNow.value) {
                     val up = waitForUpOrCancellation()
                     if (up != null) {

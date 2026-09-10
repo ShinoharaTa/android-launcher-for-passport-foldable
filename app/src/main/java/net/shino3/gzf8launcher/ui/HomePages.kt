@@ -93,7 +93,7 @@ fun WidgetsPage(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = sidePadding, vertical = 4.dp),
                 minRows = minRows,
             ) { index, placed ->
-                ItemView(placed.item, ItemRef.Grid(ZoneId.Widgets, index), apps, actions, w = placed.w, h = placed.h)
+                ItemView(placed.item, ItemRef.Grid(ZoneId.Widgets, index), apps, actions, w = placed.w, h = placed.h, seed = index)
             }
         }
     }
@@ -137,7 +137,7 @@ fun AppPage(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = sidePadding, vertical = 4.dp),
                 fixedRows = theme.rows,
             ) { i, placed ->
-                ItemView(placed.item, ItemRef.Grid(zoneId, i), apps, actions, w = placed.w, h = placed.h)
+                ItemView(placed.item, ItemRef.Grid(zoneId, i), apps, actions, w = placed.w, h = placed.h, seed = i)
             }
         }
     }

@@ -80,7 +80,6 @@ sealed interface Overlay {
     val source: Rect
 
     data class Settings(override val source: Rect) : Overlay
-    data class Home(override val source: Rect) : Overlay
     data class Widgets(override val source: Rect) : Overlay
     data class Folder(val ref: ItemRef, override val source: Rect) : Overlay
     data class Menu(val payload: DragPayload, override val source: Rect) : Overlay
@@ -104,6 +103,8 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
     val themes by controller.themes.collectAsStateWithLifecycle()
     val overrides by controller.overrides.collectAsStateWithLifecycle()
     var overlay by remember { mutableStateOf<Overlay?>(null) }
+    // 編集モード(#46)。空き領域の長押しで入り、Back / DONE / HOME キーで抜ける
+    var editing by remember { mutableStateOf(false) }
     // 閉じる動きを見せるため、消えたあとも終わるまで描き続ける
     var rendered by remember { mutableStateOf<Overlay?>(null) }
     LaunchedEffect(overlay) {
@@ -157,6 +158,7 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
         ItemActions(
             onLaunch = { entry, bounds -> controller.launch(entry, bounds.toAndroidRect(), view.scaleUpOptions(bounds)) },
             onOpenFolder = { ref, bounds -> overlay = Overlay.Folder(ref, bounds) },
+            onRemove = { controller.remove(it) },
             resolveShortcut = { controller.resolveShortcut(it) },
             onLaunchShortcut = { item, bounds -> controller.launchShortcut(item, bounds.toAndroidRect(), view.scaleUpOptions(bounds)) },
         )
@@ -169,12 +171,17 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
         menuShortcuts = if (app == null) emptyList() else controller.shortcutsFor(app)
     }
 
-    BackHandler(enabled = overlay != null || sheet.progress > 0f) {
-        if (overlay != null) overlay = null else sheet.close()
+    BackHandler(enabled = overlay != null || sheet.progress > 0f || editing) {
+        when {
+            overlay != null -> overlay = null
+            sheet.progress > 0f -> sheet.close()
+            else -> editing = false
+        }
     }
     LaunchedEffect(controller) {
         controller.homeSignal.collect {
             overlay = null
+            editing = false
             sheet.close()
             coverPager.animateScrollToPage(1)
             appsPager.animateScrollToPage(0)
@@ -221,6 +228,7 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
         LocalDragController provides drag,
         LocalAppWidgetHost provides controller.appWidgets,
         LocalDropPreview provides preview,
+        LocalEditMode provides editing,
     ) {
         Box(
             modifier = Modifier
@@ -248,7 +256,7 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .longPressOnEmptySpace(drag) { at -> overlay = Overlay.Home(Rect(at, at)) },
+                        .longPressOnEmptySpace(drag) { editing = true },
                 ) {
                     if (sideBySide) {
                         SideBySideSurface(layout, apps, actions, appsPager, gestures, onCreatePage = { controller.addPage() })
@@ -265,6 +273,15 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
                     sidePadding = if (sideBySide) theme.sidePadding else pageSidePadding,
                     modifier = Modifier.homeVerticalGestures(sheet, onSearch),
                 )
+                // 編集モードの入口はドックの下。ホーム自体は触れたままにする(#46)
+                if (editing) {
+                    EditBar(
+                        onOpenWallpaper = { controller.openWallpaperPicker() },
+                        onOpenWidgets = { overlay = Overlay.Widgets(Rect.Zero) },
+                        onOpenSettings = { overlay = Overlay.Settings(Rect.Zero) },
+                        onDone = { editing = false },
+                    )
+                }
             }
 
             TextureOverlay(theme.texture, theme.colors.line.copy(alpha = 0.06f))
@@ -306,14 +323,6 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
                     onIconShape = { controller.setIconShape(it) },
                     onOverrides = { transform -> controller.updateOverrides(transform) },
                     onClose = { overlay = null },
-                )
-                is Overlay.Home -> HomeMenu(
-                    visible = visible,
-                    source = current.source,
-                    onOpenWallpaper = { controller.openWallpaperPicker() },
-                    onOpenWidgets = { overlay = Overlay.Widgets(current.source) },
-                    onOpenSettings = { overlay = Overlay.Settings(current.source) },
-                    onDismiss = { overlay = null },
                 )
                 is Overlay.Widgets -> WidgetPicker(
                     visible = visible,

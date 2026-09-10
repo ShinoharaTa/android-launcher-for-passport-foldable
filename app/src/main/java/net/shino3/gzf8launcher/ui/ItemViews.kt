@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -45,6 +46,8 @@ import net.shino3.gzf8launcher.widget.NativeWidgetHost
 class ItemActions(
     val onLaunch: (AppEntry, Rect) -> Unit,
     val onOpenFolder: (ItemRef, Rect) -> Unit,
+    /** 編集モードの ✕ で消す(#46)。 */
+    val onRemove: (ItemRef) -> Unit = {},
     /** 固定したショートカットの表示名とアイコンを引き直す。 */
     val resolveShortcut: suspend (ShortcutItem) -> ShortcutEntry? = { null },
     val onLaunchShortcut: (ShortcutItem, Rect) -> Unit = { _, _ -> },
@@ -60,7 +63,10 @@ fun AppItem.fallbackLabel(): String = component.substringBefore('/').substringAf
 @Composable
 private fun iconShape(): Shape = LocalLauncherTheme.current.iconShape.asShape()
 
-/** 種類で描画を振り分け、長押しドラッグを付ける。 */
+/**
+ * 種類で描画を振り分け、長押しドラッグを付ける。
+ * 編集モード中は揺らし、左上に ✕ を重ねる(#46)。
+ */
 @Composable
 fun ItemView(
     item: Item,
@@ -71,6 +77,32 @@ fun ItemView(
     showLabel: Boolean = LocalLauncherTheme.current.showLabels,
     w: Int = 1,
     h: Int = 1,
+    /** 揺れの位相をずらす種。並び順を渡す。 */
+    seed: Int = 0,
+) {
+    if (LocalEditMode.current) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            ItemBody(item, ref, apps, actions, Modifier.fillMaxSize().jiggle(seed), showLabel, w, h)
+            // ✕ はセルの左上。アイテム本体より手前に置く
+            Box(modifier = Modifier.align(Alignment.TopStart).offset(x = (-6).dp, y = (-6).dp)) {
+                BoxScopeRemoveBadge { actions.onRemove(ref) }
+            }
+        }
+        return
+    }
+    ItemBody(item, ref, apps, actions, modifier, showLabel, w, h)
+}
+
+@Composable
+private fun ItemBody(
+    item: Item,
+    ref: ItemRef,
+    apps: Map<AppKey, AppEntry>,
+    actions: ItemActions,
+    modifier: Modifier,
+    showLabel: Boolean,
+    w: Int,
+    h: Int,
 ) {
     when (item) {
         is AppItem -> {
