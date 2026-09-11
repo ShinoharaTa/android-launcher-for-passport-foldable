@@ -14,7 +14,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
 import androidx.window.layout.FoldingFeature
 import androidx.window.layout.WindowInfoTracker
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import net.shino3.gzf8launcher.taskbar.TaskbarMonitor
+import net.shino3.gzf8launcher.taskbar.TaskbarState
 import net.shino3.gzf8launcher.theme.LocalLauncherTheme
 
 /**
@@ -23,14 +26,16 @@ import net.shino3.gzf8launcher.theme.LocalLauncherTheme
  */
 object MetricsWidget {
     /** FoldingFeature が無いときは null を包んで流す(Flow は null を流せるので Optional 代わりの箱)。 */
-    data class State(val fold: FoldingFeature?)
+    data class State(val fold: FoldingFeature?, val taskbar: TaskbarState = TaskbarState())
 
     val spec = WidgetSpec(id = "metrics", name = "GZF8 // METRICS", defaultW = 6, defaultH = 1, minW = 3, minH = 1)
 
     private val source = WidgetDataSource { context ->
         val activity = context.findActivity()
-        WindowInfoTracker.getOrCreate(activity).windowLayoutInfo(activity)
-            .map { info -> State(info.displayFeatures.filterIsInstance<FoldingFeature>().firstOrNull()) }
+        val fold = WindowInfoTracker.getOrCreate(activity).windowLayoutInfo(activity)
+            .map { info -> info.displayFeatures.filterIsInstance<FoldingFeature>().firstOrNull() }
+        // タスクバー(#55)のサービスが何を見ているかも並べる。実機で確かめるため
+        combine(fold, TaskbarMonitor.state) { f, t -> State(f, t) }
     }
 
     @Suppress("DEPRECATION")
@@ -46,6 +51,9 @@ object MetricsWidget {
             "WIN ${containerSize.width}x${containerSize.height}px ${configuration.screenWidthDp}x${configuration.screenHeightDp}dp dpi=${configuration.densityDpi} sw=${configuration.smallestScreenWidthDp}dp",
             "DISP id=${display.displayId} max=${maxBounds.width()}x${maxBounds.height()}px rot=${display.rotation} orient=${configuration.orientation}",
             if (fold == null) "FOLD none" else "FOLD ${fold.state} ${fold.orientation} ${fold.occlusionType} ${fold.bounds.toShortString()}",
+            state.taskbar.let { t ->
+                "TASKBAR svc=${if (t.serviceRunning) "on" else "off"} opened=${t.opened ?: "-"} sw=${t.smallestWidthDp} front=${t.foreground ?: "-"}"
+            },
         )
         Column(modifier = modifier.fillMaxSize()) {
             texts.forEach {
