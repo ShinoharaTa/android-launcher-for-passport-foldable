@@ -51,8 +51,11 @@ class ItemActions(
     val onOpenFolder: (ItemRef, Rect) -> Unit,
     /** 編集モードの ✕ で消す(#46)。 */
     val onRemove: (ItemRef) -> Unit = {},
-    /** 編集モードの四隅のつまみで大きさを変える。受け付けたら true(#47)。 */
-    val onResize: (ItemRef, dw: Int, dh: Int) -> Boolean = { _, _, _ -> false },
+    /**
+     * 編集モードの角のつまみで大きさを変える。受け付けたら true(#47)。
+     * 上や左のつまみでは原点も動くので、左上の移動量も渡す(#53)。
+     */
+    val onResize: (ItemRef, dcol: Int, drow: Int, dw: Int, dh: Int) -> Boolean = { _, _, _, _, _ -> false },
     /** 編集モードでウィジェットを選ぶ。つまみの持ち主が変わる(#47)。 */
     val onSelect: (ItemRef) -> Unit = {},
     /** 固定したショートカットの表示名とアイコンを引き直す。 */
@@ -107,10 +110,12 @@ fun ItemView(
             ItemBody(item, ref, apps, actions, Modifier.fillMaxSize().jiggle(seed), showLabel, w, h)
             if (resizable && selected) {
                 ResizeOutline()
-                ResizeHandles(cellPx = cellPx) { dw, dh -> actions.onResize(ref, dw, dh) }
+                ResizeHandles(cellPx = cellPx) { dcol, drow, dw, dh -> actions.onResize(ref, dcol, drow, dw, dh) }
             }
-            // ✕ はセルの左上。アイテム本体より手前に置く
-            Box(modifier = Modifier.align(Alignment.TopStart).offset(x = (-6).dp, y = (-6).dp)) {
+            // ✕ はセルの左上。アイテム本体より手前に置く。当たり判定はセルの内側へ広げてある(#53)。
+            // ドックはレールの形で切られるので、はみ出させない
+            val overhang = if (ref is ItemRef.Dock) 0.dp else BADGE_OVERHANG
+            Box(modifier = Modifier.align(Alignment.TopStart).offset(x = -overhang, y = -overhang)) {
                 BoxScopeRemoveBadge { actions.onRemove(ref) }
             }
         }

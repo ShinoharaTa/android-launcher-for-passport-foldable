@@ -20,6 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -74,16 +75,19 @@ fun Modifier.jiggle(seed: Int): Modifier {
 
 /**
  * 編集モード中にアイテムの左上へ出す ✕。
- * 押すと消える。押す場所は見た目より広く取る(#32 の 44dp の決まりに近づける)。
+ * 押すと消える。押す場所は #32 の 44dp を取り、見た目の丸はその左上の角に寄せる。
+ * 丸を中央に置くと当たり判定の半分がセルの外にはみ出し、ページの縁で切られて当たらなくなる(#53)。
+ * 呼び出し側は BADGE_OVERHANG だけ左上へずらして置く。
  */
 @Composable
 fun BoxScopeRemoveBadge(onRemove: () -> Unit) {
     val theme = LocalLauncherTheme.current
+    val onRemoveNow = rememberUpdatedState(onRemove)
     Box(
         modifier = Modifier
-            .size(BADGE_TAP)
-            .pointerInput(Unit) { detectTapGestures { onRemove() } },
-        contentAlignment = Alignment.Center,
+            .size(TAP_MIN)
+            .pointerInput(Unit) { detectTapGestures { onRemoveNow.value() } },
+        contentAlignment = Alignment.TopStart,
     ) {
         Box(
             modifier = Modifier
@@ -93,7 +97,7 @@ fun BoxScopeRemoveBadge(onRemove: () -> Unit) {
                 .border(1.dp, theme.colors.accent, CircleShape),
             contentAlignment = Alignment.Center,
         ) {
-            Text("✕", color = theme.colors.accent, fontFamily = theme.monoFont, fontSize = 10.sp)
+            Text("✕", color = theme.colors.accent, fontFamily = theme.monoFont, fontSize = 13.sp)
         }
     }
 }
@@ -137,8 +141,11 @@ private const val JIGGLE_DEGREES = 1.1f
 /** 揺れの片道の時間。 */
 private const val JIGGLE_MILLIS = 220
 
-/** ✕ の当たり判定。 */
-private val BADGE_TAP = 32.dp
+/** ✕ の見た目の大きさ。当たり判定は TAP_MIN。 */
+private val BADGE_DOT = 24.dp
 
-/** ✕ の見た目の大きさ。 */
-private val BADGE_DOT = 18.dp
+/**
+ * ✕ の丸をセルの角からはみ出させる量。
+ * 端の列でも画面の縁にかからず、ドックの中では縁で切られない程度に留める(ドックの余白はテーマで 0 になる)。
+ */
+val BADGE_OVERHANG = 4.dp
