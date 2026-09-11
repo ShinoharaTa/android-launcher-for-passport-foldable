@@ -13,6 +13,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
+import net.shino3.gzf8launcher.model.ItemRef
 import net.shino3.gzf8launcher.model.LayoutEditor
 import net.shino3.gzf8launcher.model.PlacedItem
 import net.shino3.gzf8launcher.model.Zone
@@ -43,7 +45,12 @@ fun HomeGrid(
     Layout(
         modifier = modifier.dropTarget("grid:$zoneId") { DropTarget.Grid(zoneId, it, columns, fixedRows) },
         content = {
-            zone.items.forEachIndexed { index, placed -> Box { cell(index, placed) } }
+            val selected = LocalSelectedItem.current
+            zone.items.forEachIndexed { index, placed ->
+                // 編集モードで選ばれたものは手前に出す。角のつまみが隣の ✕ に隠れないようにする(#53)
+                val lifted = selected == ItemRef.Grid(zoneId, index)
+                Box(modifier = Modifier.zIndex(if (lifted) 1f else 0f)) { cell(index, placed) }
+            }
             // 最後の子として、落ちる位置の枠
             if (preview != null) DropPreviewFrame(preview.kind)
         },

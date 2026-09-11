@@ -6,6 +6,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -131,6 +132,8 @@ private fun ShortcutRow(entry: ShortcutEntry, onLaunch: (ShortcutItem, Rect) -> 
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
+            // 行の高さは押す場所の下限に揃える(#32、#53)
+            .defaultMinSize(minHeight = TAP_MIN)
             .dragSource(
                 payload = DragPayload(item, null, entry.icon, entry.label),
                 onTap = { bounds -> onLaunch(item, bounds) },
