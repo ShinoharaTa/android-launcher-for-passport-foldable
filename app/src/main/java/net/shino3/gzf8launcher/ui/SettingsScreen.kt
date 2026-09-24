@@ -126,7 +126,7 @@ fun SettingsScreen(
             SectionTitle("TASKBAR")
             TaskbarSection()
             Note(
-                "開いた画面で他のアプリを使っているときに、ランチャーのドックを重ねて出すための下準備(#55)。" +
+                "開いた画面で他のアプリを使っているあいだ、下端にランチャーのドックを重ねて出す(#55 #56)。" +
                     "ユーザー補助は前面のアプリと画面の開閉を知るためだけに使い、画面の内容は読まない。" +
                     "履歴は直近に前面へ出たアプリで、サービスが動いていることの確認用。" +
                     "ブラウザから入れた APK では、有効にする前に アプリ情報 → 右上のメニュー → 「制限付き設定を許可」が要る。",
@@ -155,11 +155,12 @@ private fun TaskbarSection() {
         onPauseOrDispose { }
     }
     val serviceEnabled = remember(resumed) { TaskbarMonitor.isServiceEnabled(context) }
-    val overlayAllowed = remember(resumed) { TaskbarMonitor.canDrawOverlays(context) }
     val taskbar by TaskbarMonitor.state.collectAsStateWithLifecycle()
+    val dockEnabled by TaskbarMonitor.dockEnabled.collectAsStateWithLifecycle()
 
-    StatusRow("ACCESSIBILITY SERVICE", on = serviceEnabled) { TaskbarMonitor.openAccessibilitySettings(context) }
-    StatusRow("DRAW OVER OTHER APPS", on = overlayAllowed) { TaskbarMonitor.openOverlaySettings(context) }
+    StatusRow("ACCESSIBILITY SERVICE", on = serviceEnabled, arrow = true) { TaskbarMonitor.openAccessibilitySettings(context) }
+    // 重ねるドック(#56)。サービスを切らずに止められる
+    StatusRow("OVERLAY DOCK", on = dockEnabled, arrow = false) { TaskbarMonitor.setDockEnabled(context, !dockEnabled) }
 
     val screen = when (taskbar.opened) {
         null -> "-"
@@ -167,7 +168,7 @@ private fun TaskbarSection() {
         false -> "CLOSED"
     }
     val lines = buildList {
-        add("SERVICE ${if (taskbar.serviceRunning) "RUNNING" else "STOPPED"}  //  SCREEN $screen sw=${taskbar.smallestWidthDp}dp")
+        add("SERVICE ${if (taskbar.serviceRunning) "RUNNING" else "STOPPED"}  //  SCREEN $screen sw=${taskbar.smallestWidthDp}dp  //  DOCK ${if (taskbar.overlayShown) "SHOWN" else "HIDDEN"}")
         val clock = SimpleDateFormat("HH:mm:ss", Locale.US)
         taskbar.recent.take(RECENT_SHOWN).forEach { add("${clock.format(Date(it.at))}  ${it.packageName}") }
     }
@@ -176,9 +177,9 @@ private fun TaskbarSection() {
     }
 }
 
-/** ON / OFF を示し、押すと端末設定に飛ぶ 1 行。押す場所なので 44dp 取る(#32)。 */
+/** ON / OFF を示す 1 行。arrow なら押すと端末設定に飛び、そうでなければその場で切り替わる。押す場所なので 44dp 取る(#32)。 */
 @Composable
-private fun StatusRow(label: String, on: Boolean, onClick: () -> Unit) {
+private fun StatusRow(label: String, on: Boolean, arrow: Boolean, onClick: () -> Unit) {
     val theme = LocalLauncherTheme.current
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -189,7 +190,7 @@ private fun StatusRow(label: String, on: Boolean, onClick: () -> Unit) {
     ) {
         Text(label, color = theme.colors.text, fontFamily = theme.monoFont, fontSize = 12.sp, modifier = Modifier.weight(1f))
         Text(
-            text = if (on) "ON  ›" else "OFF  ›",
+            text = (if (on) "ON" else "OFF") + (if (arrow) "  ›" else ""),
             color = if (on) theme.colors.accent else theme.colors.textDim,
             fontFamily = theme.monoFont,
             fontSize = 12.sp,

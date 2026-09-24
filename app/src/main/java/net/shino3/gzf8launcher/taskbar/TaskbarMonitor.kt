@@ -3,7 +3,6 @@ package net.shino3.gzf8launcher.taskbar
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.provider.Settings
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,6 +26,8 @@ data class TaskbarState(
     val smallestWidthDp: Int = 0,
     /** 直近に前面へ出たアプリ。新しいものが先頭。 */
     val recent: List<ForegroundEvent> = emptyList(),
+    /** 重ねたドックがいま出ているか(#56)。 */
+    val overlayShown: Boolean = false,
 )
 
 /**
@@ -39,6 +40,26 @@ object TaskbarMonitor {
 
     internal fun update(transform: (TaskbarState) -> TaskbarState) = _state.update(transform)
 
+    private val _dockEnabled = MutableStateFlow(true)
+
+    /** 重ねたドックを出すか(#56)。サービスを切らずに止められるように、設定で持つ。 */
+    val dockEnabled: StateFlow<Boolean> = _dockEnabled
+
+    /** 設定の読み込み。サービスと Activity のどちらが先に動いても同じ値を見る。 */
+    fun init(context: Context) {
+        _dockEnabled.value = prefs(context).getBoolean(KEY_DOCK_ENABLED, true)
+    }
+
+    fun setDockEnabled(context: Context, enabled: Boolean) {
+        prefs(context).edit().putBoolean(KEY_DOCK_ENABLED, enabled).apply()
+        _dockEnabled.value = enabled
+    }
+
+    private fun prefs(context: Context) = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+    private const val PREFS_NAME = "taskbar"
+    private const val KEY_DOCK_ENABLED = "dock_enabled"
+
     /** 端末設定でユーザー補助サービスが有効になっているか。動いているかは state.serviceRunning で見る。 */
     fun isServiceEnabled(context: Context): Boolean {
         val expected = ComponentName(context, TaskbarService::class.java)
@@ -46,17 +67,7 @@ object TaskbarMonitor {
         return enabled.split(':').any { ComponentName.unflattenFromString(it) == expected }
     }
 
-    /** 「他のアプリの上に重ねて表示」が許可されているか(#56 で使う)。 */
-    fun canDrawOverlays(context: Context): Boolean = Settings.canDrawOverlays(context)
-
     fun openAccessibilitySettings(context: Context) {
         context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-    }
-
-    fun openOverlaySettings(context: Context) {
-        context.startActivity(
-            Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}"))
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-        )
     }
 }

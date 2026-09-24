@@ -11,6 +11,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.lifecycleScope
 import net.shino3.gzf8launcher.data.LauncherController
+import net.shino3.gzf8launcher.taskbar.TaskbarMonitor
 import net.shino3.gzf8launcher.ui.LauncherRoot
 import net.shino3.gzf8launcher.widget.BuiltInWidgets
 
@@ -25,6 +26,7 @@ class MainActivity : ComponentActivity(), LauncherController.AppWidgetBindHost {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         BuiltInWidgets.register()
+        TaskbarMonitor.init(applicationContext)
         controller = LauncherController(applicationContext, lifecycleScope)
         controller.bindHost = this
         controller.start()

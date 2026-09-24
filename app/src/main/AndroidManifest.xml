@@ -23,9 +23,6 @@
     <!-- 長押しメニューの UNINSTALL(#36)。Android 9 以降、ACTION_DELETE を投げるのに要る。確認画面は端末側が出す -->
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
 
-    <!-- タスクバー(#56)。開いた画面で他のアプリの上にドックを重ねる。設定画面からユーザーが許可する -->
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
-
     <application
         android:label="@string/app_name"
         android:supportsRtl="true"
