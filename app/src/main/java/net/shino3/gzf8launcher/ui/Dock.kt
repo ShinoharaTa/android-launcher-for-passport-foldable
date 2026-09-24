@@ -67,7 +67,7 @@ fun Dock(
             repeat(theme.dockSlots) { slot ->
                 Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
                     items.getOrNull(slot)?.let { item ->
-                        ItemView(item, ItemRef.Dock(slot), apps, actions, showLabel = false)
+                        ItemView(item, ItemRef.Dock(slot), apps, actions, showLabel = false, seed = slot)
                     }
                 }
             }
