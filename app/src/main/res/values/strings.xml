@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Fold8 Launcher</string>
+    <!-- タスクバー(#55)。端末のユーザー補助の設定画面に出る文言 -->
+    <string name="taskbar_service_label">Fold8 Launcher タスクバー</string>
+    <string name="taskbar_service_summary">開いた画面で他のアプリの上にドックを重ねる</string>
+    <string name="taskbar_service_description">開いた画面で他のアプリを使っているときに、ランチャーのドックを重ねて出すために使います。前面にあるアプリと画面の開閉を知るためだけに使い、画面の内容や入力は読み取りません。</string>
 </resources>

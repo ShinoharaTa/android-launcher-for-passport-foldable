@@ -23,6 +23,9 @@
     <!-- 長押しメニューの UNINSTALL(#36)。Android 9 以降、ACTION_DELETE を投げるのに要る。確認画面は端末側が出す -->
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
 
+    <!-- タスクバー(#56)。開いた画面で他のアプリの上にドックを重ねる。設定画面からユーザーが許可する -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
     <application
         android:label="@string/app_name"
         android:supportsRtl="true"
@@ -43,5 +46,19 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- タスクバー(#55)。前面のアプリと画面の開閉を知るためのユーザー補助サービス。端末設定でユーザーが有効にする -->
+        <service
+            android:name=".taskbar.TaskbarService"
+            android:exported="true"
+            android:label="@string/taskbar_service_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/taskbar_accessibility" />
+        </service>
     </application>
 </manifest>

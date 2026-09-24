@@ -7,6 +7,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -18,12 +19,23 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.LifecycleResumeEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import net.shino3.gzf8launcher.taskbar.TaskbarMonitor
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import net.shino3.gzf8launcher.theme.FontChoice
 import net.shino3.gzf8launcher.theme.IconShape
 import net.shino3.gzf8launcher.theme.LocalLauncherTheme
@@ -111,6 +123,15 @@ fun SettingsScreen(
             }
             Note("SIDE PADDING はグリッドとドックの左右の余白。DOCK INSET はそこからレールを引っ込めて中央に寄せる量で、0 にするとグリッドと同じ幅になる。TOP / BOTTOM INSET はステータスバーとナビゲーションバーの内側に足す余白。アクセント色の値は設定で上書きしている。")
 
+            SectionTitle("TASKBAR")
+            TaskbarSection()
+            Note(
+                "開いた画面で他のアプリを使っているときに、ランチャーのドックを重ねて出すための下準備(#55)。" +
+                    "ユーザー補助は前面のアプリと画面の開閉を知るためだけに使い、画面の内容は読まない。" +
+                    "履歴は直近に前面へ出たアプリで、サービスが動いていることの確認用。" +
+                    "ブラウザから入れた APK では、有効にする前に アプリ情報 → 右上のメニュー → 「制限付き設定を許可」が要る。",
+            )
+
             SectionTitle("THEME")
             themes.forEach { spec ->
                 ThemeRow(spec, selected = spec.id == currentThemeId) { onApplyTheme(spec) }
@@ -119,6 +140,65 @@ fun SettingsScreen(
         }
     }
 }
+
+/**
+ * タスクバー(#55)の状態と、端末設定への入口。
+ * 権限は端末設定から戻ってきたときに読み直す。サービスの状態は TaskbarMonitor から流れてくる。
+ */
+@Composable
+private fun TaskbarSection() {
+    val theme = LocalLauncherTheme.current
+    val context = LocalContext.current
+    var resumed by remember { mutableIntStateOf(0) }
+    LifecycleResumeEffect(Unit) {
+        resumed++
+        onPauseOrDispose { }
+    }
+    val serviceEnabled = remember(resumed) { TaskbarMonitor.isServiceEnabled(context) }
+    val overlayAllowed = remember(resumed) { TaskbarMonitor.canDrawOverlays(context) }
+    val taskbar by TaskbarMonitor.state.collectAsStateWithLifecycle()
+
+    StatusRow("ACCESSIBILITY SERVICE", on = serviceEnabled) { TaskbarMonitor.openAccessibilitySettings(context) }
+    StatusRow("DRAW OVER OTHER APPS", on = overlayAllowed) { TaskbarMonitor.openOverlaySettings(context) }
+
+    val screen = when (taskbar.opened) {
+        null -> "-"
+        true -> "OPENED"
+        false -> "CLOSED"
+    }
+    val lines = buildList {
+        add("SERVICE ${if (taskbar.serviceRunning) "RUNNING" else "STOPPED"}  //  SCREEN $screen sw=${taskbar.smallestWidthDp}dp")
+        val clock = SimpleDateFormat("HH:mm:ss", Locale.US)
+        taskbar.recent.take(RECENT_SHOWN).forEach { add("${clock.format(Date(it.at))}  ${it.packageName}") }
+    }
+    lines.forEach {
+        Text(it, color = theme.colors.textDim, fontFamily = theme.monoFont, fontSize = 11.sp, modifier = Modifier.padding(vertical = 2.dp))
+    }
+}
+
+/** ON / OFF を示し、押すと端末設定に飛ぶ 1 行。押す場所なので 44dp 取る(#32)。 */
+@Composable
+private fun StatusRow(label: String, on: Boolean, onClick: () -> Unit) {
+    val theme = LocalLauncherTheme.current
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .defaultMinSize(minHeight = TAP_MIN)
+            .pointerInput(Unit) { detectTapGestures { onClick() } },
+    ) {
+        Text(label, color = theme.colors.text, fontFamily = theme.monoFont, fontSize = 12.sp, modifier = Modifier.weight(1f))
+        Text(
+            text = if (on) "ON  ›" else "OFF  ›",
+            color = if (on) theme.colors.accent else theme.colors.textDim,
+            fontFamily = theme.monoFont,
+            fontSize = 12.sp,
+        )
+    }
+}
+
+/** 設定画面に出す履歴の行数。 */
+private const val RECENT_SHOWN = 5
 
 @Composable
 private fun SectionTitle(text: String) {
