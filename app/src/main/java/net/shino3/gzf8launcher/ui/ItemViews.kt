@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -20,6 +21,8 @@ import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.style.TextAlign
@@ -48,6 +51,10 @@ class ItemActions(
     val onOpenFolder: (ItemRef, Rect) -> Unit,
     /** 編集モードの ✕ で消す(#46)。 */
     val onRemove: (ItemRef) -> Unit = {},
+    /** 編集モードの四隅のつまみで大きさを変える。受け付けたら true(#47)。 */
+    val onResize: (ItemRef, dw: Int, dh: Int) -> Boolean = { _, _, _ -> false },
+    /** 編集モードでウィジェットを選ぶ。つまみの持ち主が変わる(#47)。 */
+    val onSelect: (ItemRef) -> Unit = {},
     /** 固定したショートカットの表示名とアイコンを引き直す。 */
     val resolveShortcut: suspend (ShortcutItem) -> ShortcutEntry? = { null },
     val onLaunchShortcut: (ShortcutItem, Rect) -> Unit = { _, _ -> },
@@ -81,8 +88,27 @@ fun ItemView(
     seed: Int = 0,
 ) {
     if (LocalEditMode.current) {
-        Box(modifier = Modifier.fillMaxSize()) {
+        // ウィジェットは触ると選ばれ、四隅のつまみが出る(#47)
+        val resizable = item is NativeWidgetItem || item is AppWidgetItem
+        val selected = LocalSelectedItem.current == ref
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxSize()
+                // タップでつまみの持ち主を決める。子のドラッグはずれてから始まるので競合しない
+                .then(
+                    if (resizable) {
+                        Modifier.pointerInput(ref) { detectTapGestures { actions.onSelect(ref) } }
+                    } else {
+                        Modifier
+                    },
+                ),
+        ) {
+            val cellPx = with(LocalDensity.current) { (maxWidth / w.coerceAtLeast(1)).toPx() }
             ItemBody(item, ref, apps, actions, Modifier.fillMaxSize().jiggle(seed), showLabel, w, h)
+            if (resizable && selected) {
+                ResizeOutline()
+                ResizeHandles(cellPx = cellPx) { dw, dh -> actions.onResize(ref, dw, dh) }
+            }
             // ✕ はセルの左上。アイテム本体より手前に置く
             Box(modifier = Modifier.align(Alignment.TopStart).offset(x = (-6).dp, y = (-6).dp)) {
                 BoxScopeRemoveBadge { actions.onRemove(ref) }

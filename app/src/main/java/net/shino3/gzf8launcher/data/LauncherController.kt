@@ -233,6 +233,24 @@ class LauncherController(private val context: Context, private val scope: Corout
 
 
     /** pageRows はアプリのページの段数。ウィジェット面には上限がない。 */
+    /**
+     * つまみで大きさを変える(#47)。受け付けたら true。
+     * 置けない大きさ(はみ出す、他と重なる、種別の上下限を超える)なら false を返し、
+     * 呼び出し側はその段を送らなかったことにする。
+     */
+    fun resizeBy(ref: ItemRef, dw: Int, dh: Int, columns: Int, pageRows: Int): Boolean {
+        val layout = layout.value
+        val p = LayoutEditor.placementOf(layout, ref) ?: return false
+        val w = p.w + dw
+        val h = p.h + dh
+        val spec = (LayoutEditor.itemAt(layout, ref) as? NativeWidgetItem)?.let { WidgetRegistry.get(it.widget)?.spec }
+        if (spec != null && (w !in spec.minW..spec.maxW || h !in spec.minH..spec.maxH)) return false
+        val rows = ((ref as? ItemRef.Grid)?.zone as? ZoneId.Page)?.let { pageRows }
+        val next = LayoutEditor.resize(layout, ref, w, h, columns, rows) ?: return false
+        edit { next }
+        return true
+    }
+
     fun resize(ref: ItemRef, dw: Int, dh: Int, columns: Int, pageRows: Int) = edit { layout ->
         val p = LayoutEditor.placementOf(layout, ref) ?: return@edit null
         val w = p.w + dw
