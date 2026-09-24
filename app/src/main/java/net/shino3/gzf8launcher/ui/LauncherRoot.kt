@@ -140,7 +140,7 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
                 }
                 accepted
             },
-            onLongPress = { payload, bounds -> overlay = Overlay.Menu(payload, bounds) },
+            onLongPress = { payload, bounds -> if (payload.menu) overlay = Overlay.Menu(payload, bounds) },
             onCancel = { controller.pruneEmptyPages() },
         )
     }

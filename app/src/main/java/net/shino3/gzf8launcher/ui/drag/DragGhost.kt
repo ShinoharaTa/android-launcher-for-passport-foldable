@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -17,6 +18,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalDensity
@@ -70,6 +72,32 @@ fun RejectedGhost(rejected: RejectedDrop, onDone: () -> Unit) {
 
 @Composable
 private fun GhostBody(payload: DragPayload, size: androidx.compose.ui.unit.Dp) {
+    val theme = LocalLauncherTheme.current
+    // 束で運んでいるときは、重なった影の右上に数を出す(#48)
+    if (payload.count > 1) {
+        Box(contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.offset(x = 5.dp, y = 5.dp).alpha(0.35f)) { GhostIcon(payload, size) }
+            Box(modifier = Modifier.offset(x = 2.dp, y = 2.dp).alpha(0.6f)) { GhostIcon(payload, size) }
+            GhostIcon(payload, size)
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(x = 6.dp, y = (-6).dp)
+                    .size(22.dp)
+                    .clip(CircleShape)
+                    .background(theme.colors.accent),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("${payload.count}", color = theme.colors.surface.copy(alpha = 1f), fontFamily = theme.monoFont, fontSize = 11.sp)
+            }
+        }
+        return
+    }
+    GhostIcon(payload, size)
+}
+
+@Composable
+private fun GhostIcon(payload: DragPayload, size: androidx.compose.ui.unit.Dp) {
     val theme = LocalLauncherTheme.current
     val icon = payload.icon
     if (icon != null) {

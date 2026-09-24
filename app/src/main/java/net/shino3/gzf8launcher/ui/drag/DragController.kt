@@ -38,7 +38,20 @@ data class DragPayload(
     val label: String,
     val w: Int = 1,
     val h: Int = 1,
-)
+    /**
+     * まとめて運ぶ残り(#48)。ドロワーで複数選んだときだけ入る。
+     * 先頭は item 自身なので、ここには 2 つ目以降を入れる。
+     */
+    val rest: List<Item> = emptyList(),
+    /**
+     * 長押しして動かさずに離したときに、アイテムメニューを出すか(#48)。
+     * ドロワーでは長押しが複数選択の入口なので、そこでは出さない。
+     */
+    val menu: Boolean = true,
+) {
+    /** 束で運んでいる数。1 なら普通のドラッグ。 */
+    val count: Int get() = 1 + rest.size
+}
 
 class DragSession(val payload: DragPayload, val start: Offset) {
     var position by mutableStateOf(start)
@@ -171,6 +184,11 @@ fun Modifier.dragSource(
     enabled: Boolean = true,
     /** 触った要素の矩形を受け取る。起動や重ね描きの起点に使う(#23)。 */
     onTap: ((Rect) -> Unit)? = null,
+    /**
+     * 長押しが成立した瞬間に呼ぶ(#48)。ドラッグは今まで通り続く。
+     * ドロワーの複数選択のように、長押しをモードの入口に使うところで渡す。
+     */
+    onLongPress: (() -> Unit)? = null,
 ): Modifier {
     val controller = LocalDragController.current
     val haptic = LocalHapticFeedback.current
@@ -179,6 +197,7 @@ fun Modifier.dragSource(
     // pointerInput の鍵にすると進行中のジェスチャが途中で切られ、end() が呼ばれずに影が残る
     val enabledNow = rememberUpdatedState(enabled)
     val onTapNow = rememberUpdatedState(onTap)
+    val onLongPressNow = rememberUpdatedState(onLongPress)
     // 編集モード中は長押しを待たずにつまめる。タップでの起動は止める(#46)
     val editingNow = rememberUpdatedState(LocalEditMode.current)
     return this
@@ -216,6 +235,7 @@ fun Modifier.dragSource(
                 val longPress = awaitLongPressOrCancellation(down.id)
                 if (longPress != null) {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onLongPressNow.value?.invoke()
                     controller.begin(payload, bounds.topLeft + longPress.position, bounds)
                     var finished = false
                     try {
