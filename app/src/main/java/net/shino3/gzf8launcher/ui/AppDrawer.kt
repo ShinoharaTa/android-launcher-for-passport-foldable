@@ -329,7 +329,7 @@ private fun SearchField(
     }
 }
 
-/** 絞り込みチップの列。横に流れる。押す場所なので 40dp 以上に取る(#32)。 */
+/** 絞り込みチップの列。横に流れる。押す場所なので 44dp 以上に取る(#32)。 */
 @Composable
 private fun FilterChips(chips: List<DrawerFilter>, selected: DrawerFilter?, onSelect: (DrawerFilter) -> Unit) {
     Row(

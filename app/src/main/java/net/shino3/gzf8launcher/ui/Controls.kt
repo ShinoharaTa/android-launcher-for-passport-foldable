@@ -53,7 +53,7 @@ fun Chip(label: String, selected: Boolean, modifier: Modifier = Modifier, onClic
     val shape = RoundedCornerShape(10.dp)
     Box(
         modifier = modifier
-            .defaultMinSize(minWidth = 56.dp, minHeight = 40.dp)
+            .defaultMinSize(minWidth = 56.dp, minHeight = TAP_MIN)
             .clip(shape)
             .background(if (selected) theme.colors.accent else Color.Transparent)
             .border(1.dp, if (selected) theme.colors.accent else theme.colors.line, shape)

@@ -59,11 +59,21 @@ object LayoutEditor {
     /** ウィジェットの大きさを変える。列や段からはみ出す、他と重なる場合は null。rows は段数が固定のゾーンで渡す。 */
     fun resize(layout: Layout, ref: ItemRef, w: Int, h: Int, columns: Int, rows: Int? = null): Layout? {
         val grid = ref as? ItemRef.Grid ?: return null
+        val placed = layout.zone(grid.zone).items.getOrNull(grid.index) ?: return null
+        return resize(layout, ref, placed.col, placed.row, w, h, columns, rows)
+    }
+
+    /**
+     * 左上も動かして大きさを変える(#53)。
+     * 上や左のつまみを引いたときは、反対側の角を留めて原点のほうを動かす。
+     */
+    fun resize(layout: Layout, ref: ItemRef, col: Int, row: Int, w: Int, h: Int, columns: Int, rows: Int? = null): Layout? {
+        val grid = ref as? ItemRef.Grid ?: return null
         val zone = layout.zone(grid.zone)
         val placed = zone.items.getOrNull(grid.index) ?: return null
-        if (w < 1 || h < 1 || placed.col + w > columns) return null
-        if (rows != null && placed.row + h > rows) return null
-        val next = placed.copy(w = w, h = h)
+        if (w < 1 || h < 1 || col < 0 || row < 0 || col + w > columns) return null
+        if (rows != null && row + h > rows) return null
+        val next = placed.copy(col = col, row = row, w = w, h = h)
         if (zone.items.filterIndexed { i, _ -> i != grid.index }.any { it.overlaps(next) }) return null
         return layout.withZone(grid.zone, zone.copy(items = zone.items.mapIndexed { i, p -> if (i == grid.index) next else p }))
     }

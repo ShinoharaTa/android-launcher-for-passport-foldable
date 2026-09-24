@@ -164,7 +164,7 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
             onLaunch = { entry, bounds -> controller.launch(entry, bounds.toAndroidRect(), view.scaleUpOptions(bounds)) },
             onOpenFolder = { ref, bounds -> if (editingNow.value) selected = ref else overlay = Overlay.Folder(ref, bounds) },
             onRemove = { controller.remove(it) },
-            onResize = { ref, dw, dh -> controller.resizeBy(ref, dw, dh, theme.columns, theme.rows) },
+            onResize = { ref, dcol, drow, dw, dh -> controller.resizeBy(ref, dcol, drow, dw, dh, theme.columns, theme.rows) },
             onSelect = { selected = if (selected == it) null else it },
             resolveShortcut = { controller.resolveShortcut(it) },
             onLaunchShortcut = { item, bounds -> controller.launchShortcut(item, bounds.toAndroidRect(), view.scaleUpOptions(bounds)) },
