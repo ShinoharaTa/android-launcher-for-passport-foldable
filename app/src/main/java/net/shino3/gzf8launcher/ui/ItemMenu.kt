@@ -43,6 +43,7 @@ import net.shino3.gzf8launcher.ui.drag.dragSource
 /**
  * 長押しして動かさずに離したときのメニュー。
  * アプリの場合は、そのアプリが持つ Android のショートカットも並べる(#11)。
+ * 触ったアイテムの近くに吹き出しで出す(#45)。ウィジェットの大きさは編集モードのつまみで変える(#47)。
  */
 @Composable
 fun ItemMenu(
@@ -55,7 +56,6 @@ fun ItemMenu(
     onAppInfo: (AppItem) -> Unit,
     onUninstall: (AppItem) -> Unit,
     onOpenFolder: (ItemRef) -> Unit,
-    onResize: (ItemRef, dw: Int, dh: Int) -> Unit,
     onRemove: (ItemRef) -> Unit,
     onLaunchShortcut: (ShortcutItem, Rect) -> Unit,
     onDismiss: () -> Unit,
@@ -63,13 +63,14 @@ fun ItemMenu(
     val theme = LocalLauncherTheme.current
     val shape = theme.shapeOf(theme.moduleRadius + 4.dp)
     val ref = payload.source
-    OverlayScaffold(visible = visible, source = source, hidden = hidden, onDismiss = onDismiss) {
+    Popover(visible = visible, anchor = source, hidden = hidden, onDismiss = onDismiss, fill = theme.colors.surface.copy(alpha = 1f)) {
         Column(
             modifier = Modifier
-                .width(300.dp)
+                .width(260.dp)
                 .clip(shape)
-                .background(theme.colors.surface)
-                .border(1.dp, theme.outline, shape)
+                .background(theme.colors.surface.copy(alpha = 1f))
+                // 枠を消すテーマでも、浮いている面には縁を残す。無いと下地と溶ける
+                .border(1.dp, if (theme.decor.outlines) theme.outline else theme.colors.line, shape)
                 .padding(vertical = 8.dp),
         ) {
             // アプリ名は日本語が入るので UI 書体(#32)
@@ -103,32 +104,16 @@ fun ItemMenu(
                     MenuRow("UNINSTALL") { onUninstall(item); onDismiss() }
                 }
                 is FolderItem -> if (ref != null) MenuRow("OPEN / RENAME") { onOpenFolder(ref) }
+                // 大きさは編集モードの四隅のつまみで変える(#47)
                 is NativeWidgetItem, is AppWidgetItem -> if (ref != null) {
                     val p = LayoutEditor.placementOf(layout, ref)
                     Text(
-                        text = "SIZE ${p?.w ?: payload.w} x ${p?.h ?: payload.h}",
+                        text = "SIZE ${p?.w ?: payload.w} x ${p?.h ?: payload.h}  //  EDIT TO RESIZE",
                         color = theme.colors.textDim,
                         fontFamily = theme.monoFont,
-                        fontSize = 11.sp,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                        fontSize = 10.sp,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     )
-                    // 押す場所なので 44dp 以上に取る(#32)
-                    Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
-                        listOf("W-" to (-1 to 0), "W+" to (1 to 0), "H-" to (0 to -1), "H+" to (0 to 1)).forEach { (label, d) ->
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .padding(4.dp)
-                                    .height(TAP_MIN)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .border(1.dp, theme.colors.line, RoundedCornerShape(8.dp))
-                                    .pointerInput(label) { detectTapGestures { onResize(ref, d.first, d.second) } },
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Text(label, color = theme.colors.text, fontFamily = theme.monoFont, fontSize = 13.sp)
-                            }
-                        }
-                    }
                 }
                 is ShortcutItem -> MenuRow("LAUNCH") { onLaunchShortcut(item, source ?: Rect.Zero); onDismiss() }
             }
@@ -182,13 +167,15 @@ fun HomeMenu(
 ) {
     val theme = LocalLauncherTheme.current
     val shape = theme.shapeOf(theme.moduleRadius + 4.dp)
-    OverlayScaffold(visible = visible, source = source, hidden = false, onDismiss = onDismiss) {
+    // ホームメニューも同じ吹き出しに揃える。空き領域を触った点から伸びる(#45)
+    Popover(visible = visible, anchor = source, hidden = false, onDismiss = onDismiss, fill = theme.colors.surface.copy(alpha = 1f)) {
         Column(
             modifier = Modifier
-                .width(260.dp)
+                .width(240.dp)
                 .clip(shape)
-                .background(theme.colors.surface)
-                .border(1.dp, theme.outline, shape)
+                .background(theme.colors.surface.copy(alpha = 1f))
+                // 枠を消すテーマでも、浮いている面には縁を残す。無いと下地と溶ける
+                .border(1.dp, if (theme.decor.outlines) theme.outline else theme.colors.line, shape)
                 .padding(vertical = 8.dp),
         ) {
             Text(

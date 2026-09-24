@@ -207,7 +207,6 @@ class LauncherController(private val context: Context, private val scope: Corout
         val current = layout.value
         val base = p.source?.let { LayoutEditor.remove(current, it) } ?: current
         val next = when (target) {
-            is DropTarget.Remove -> if (p.source == null) null else base
             is DropTarget.Grid -> {
                 val (col, row) = target.cellFor(session.position, p.w, p.h)
                 LayoutEditor.dropOnGrid(base, target.zone, col, row, p.item, p.w, p.h, target.columns, target.rows, dwell)

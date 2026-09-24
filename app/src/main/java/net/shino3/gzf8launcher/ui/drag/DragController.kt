@@ -71,7 +71,6 @@ sealed class DropTarget(val bounds: Rect, val priority: Int) {
         fun slotAt(pos: Offset): Int = ((pos.x - bounds.left) / (bounds.width / slots)).toInt().coerceIn(0, slots - 1)
     }
 
-    class Remove(bounds: Rect) : DropTarget(bounds, 0)
 }
 
 /**
