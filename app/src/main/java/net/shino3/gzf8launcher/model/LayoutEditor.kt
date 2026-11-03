@@ -197,6 +197,44 @@ object LayoutEditor {
         return layout.copy(dock = dock + item)
     }
 
+    /**
+     * 束をまとめてフォルダにする(#63)。グリッドの (col,row) にあるものに、束の全部を入れる。
+     * アプリの上ならそのアプリと束で新しいフォルダ、フォルダの上なら中に足す。それ以外は null。
+     */
+    fun mergeManyOnGrid(layout: Layout, zoneId: ZoneId, col: Int, row: Int, items: List<Item>, name: String): Layout? {
+        val zone = layout.zone(zoneId)
+        val index = zone.items.indexOfFirst { it.contains(col, row) }
+        if (index < 0) return null
+        val merged = mergeMany(zone.items[index].item, items, name) ?: return null
+        return layout.withZone(zoneId, zone.copy(items = zone.items.mapIndexed { i, p -> if (i == index) p.copy(item = merged) else p }))
+    }
+
+    /** ドック版。slot にあるものに束を入れる。 */
+    fun mergeManyOnDock(layout: Layout, slot: Int, items: List<Item>, name: String): Layout? {
+        val occupant = layout.dock.getOrNull(slot) ?: return null
+        val merged = mergeMany(occupant, items, name) ?: return null
+        return layout.copy(dock = layout.dock.mapIndexed { i, it -> if (i == slot) merged else it })
+    }
+
+    /**
+     * 束を 1 つのフォルダに。アプリ以外(ウィジェットなど)は入れない。
+     * 既に入っているアプリと、束の中の重複は 1 つにする。入れるものが 1 つも無ければ null。
+     */
+    fun mergeMany(occupant: Item, incoming: List<Item>, name: String): Item? {
+        val apps = incoming.filterIsInstance<AppItem>()
+        return when (occupant) {
+            is AppItem -> {
+                val members = (listOf(occupant) + apps).distinctBy { it.key }
+                if (members.size < 2) null else FolderItem(name, members)
+            }
+            is FolderItem -> {
+                val added = apps.filter { a -> occupant.apps.none { it.key == a.key } }.distinctBy { it.key }
+                if (added.isEmpty()) null else occupant.copy(apps = occupant.apps + added)
+            }
+            else -> null
+        }
+    }
+
     /** アプリ + アプリ → 新しいフォルダ。フォルダ + アプリ → 追加。それ以外は結合しない。 */
     private fun merge(occupant: Item, incoming: Item): Item? = when {
         occupant is AppItem && incoming is AppItem -> FolderItem(DEFAULT_FOLDER_NAME, listOf(occupant, incoming))

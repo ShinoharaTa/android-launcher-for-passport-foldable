@@ -253,7 +253,8 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
                 modifier = Modifier
                     .fillMaxSize()
                     .graphicsLayer {
-                        val p = sheet.progress
+                        // ドロワーから引き出しているあいだは、落とす先として元の大きさと明るさに戻す(#63)
+                        val p = if (session?.moved == true) 0f else sheet.progress
                         val s = 1f - 0.04f * p
                         scaleX = s
                         scaleY = s
@@ -307,12 +308,17 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
 
             TextureOverlay(theme.texture, theme.colors.line.copy(alpha = 0.06f))
 
-            // ドロワー。進捗に応じて下から上がる
+            // ドロワー。進捗に応じて下から上がる。
+            // ドロワーから引き出したら見えなくし、落とす先のホームを見せる。合成には残してジェスチャを続ける(#63)
             if (sheet.progress > 0f) {
+                val draggingOut = session?.moved == true
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .graphicsLayer { translationY = size.height * (1f - sheet.progress) },
+                        .graphicsLayer {
+                            translationY = size.height * (1f - sheet.progress)
+                            alpha = if (draggingOut) 0f else 1f
+                        },
                 ) {
                     AppDrawer(
                         apps = apps.values.sortedBy { it.label.lowercase() },

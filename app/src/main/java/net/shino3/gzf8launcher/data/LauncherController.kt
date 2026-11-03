@@ -207,6 +207,24 @@ class LauncherController(private val context: Context, private val scope: Corout
         }
         val current = layout.value
         val base = p.source?.let { LayoutEditor.remove(current, it) } ?: current
+        // 束をアプリかフォルダの上に留めてから離した(#63)。全部を 1 つのフォルダにまとめる
+        if (p.rest.isNotEmpty() && dwell) {
+            val bundle = listOf(p.item) + p.rest
+            val name = folderNameFor(bundle)
+            val merged = when (target) {
+                is DropTarget.Grid -> {
+                    val (col, row) = target.cellFor(session.position, 1, 1)
+                    LayoutEditor.mergeManyOnGrid(base, target.zone, col, row, bundle, name)
+                }
+                is DropTarget.Dock -> LayoutEditor.mergeManyOnDock(base, target.slotAt(session.position), bundle, name)
+            }
+            if (merged != null) {
+                edit(undo = "FOLDER + ${bundle.size} APPS") { merged }
+                return true
+            }
+        }
+        // 束をドックへ留めずに落とした。並べる場所が無いので拒否して影を戻す(原則 5)
+        if (p.rest.isNotEmpty() && target is DropTarget.Dock) return false
         // ドロワーで複数選んだ束(#48)。落とした場所から順に空きへ並べ、あふれたら次のページへ
         if (p.rest.isNotEmpty() && target is DropTarget.Grid) {
             val (col, row) = target.cellFor(session.position, 1, 1)
@@ -403,6 +421,15 @@ class LauncherController(private val context: Context, private val scope: Corout
         if (candidates.isEmpty()) return
         val keep = appWidgetIds(current) + history.flatMap { appWidgetIds(it.layout) }
         (candidates - keep).forEach { appWidgets.deleteId(it) }
+    }
+
+    /**
+     * 束から作るフォルダの名前(#63)。全部が同じカテゴリならその名前、ばらばらなら既定の名前。
+     * 既存のフォルダに足すときは使われない(フォルダの名前はそのまま)。
+     */
+    private fun folderNameFor(items: List<Item>): String {
+        val categories = items.filterIsInstance<AppItem>().map { _apps.value[it.key]?.category ?: -1 }.distinct()
+        return categories.singleOrNull()?.let { AppCategories.labelOf(it) } ?: LayoutEditor.DEFAULT_FOLDER_NAME
     }
 
     /** 帯に出す名前。大文字の等幅で出すので短く。 */
