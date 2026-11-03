@@ -56,6 +56,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import net.shino3.gzf8launcher.data.AppCategories
 import net.shino3.gzf8launcher.data.AppEntry
 import net.shino3.gzf8launcher.data.UsageRepository
 import net.shino3.gzf8launcher.model.AppKey
@@ -180,16 +181,7 @@ sealed interface DrawerFilter {
     }
 }
 
-private val CATEGORY_LABELS = mapOf(
-    ApplicationInfo.CATEGORY_GAME to "GAME",
-    ApplicationInfo.CATEGORY_AUDIO to "AUDIO",
-    ApplicationInfo.CATEGORY_VIDEO to "VIDEO",
-    ApplicationInfo.CATEGORY_IMAGE to "IMAGE",
-    ApplicationInfo.CATEGORY_SOCIAL to "SOCIAL",
-    ApplicationInfo.CATEGORY_NEWS to "NEWS",
-    ApplicationInfo.CATEGORY_MAPS to "MAPS",
-    ApplicationInfo.CATEGORY_PRODUCTIVITY to "PRODUCTIVITY",
-)
+private val CATEGORY_LABELS = AppCategories.labels
 
 /** 出すチップ。固定の 3 つと、アプリが 1 つでも付けているカテゴリ。 */
 private fun availableFilters(apps: List<AppEntry>): List<DrawerFilter> {
