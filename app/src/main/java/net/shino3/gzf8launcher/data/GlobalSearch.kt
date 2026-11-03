@@ -15,13 +15,16 @@ import android.util.Log
  *  2. Finder のパッケージの起動 Intent
  *  3. 端末が選んでいる全体検索(素の Android では Google)
  * どれも無ければ null を返し、呼び出し側が自前のドロワー検索に落とす。
- * どの経路で開いたかは実機でしか分からないので、ログに残す。
+ * どの経路で開いたかは実機でしか分からないので、ログに残し、設定画面にも出す(#31)。
  */
 object GlobalSearch {
     private const val TAG = "GlobalSearch"
     private const val FINDER_PACKAGE = "com.samsung.android.app.galaxyfinder"
 
-    fun resolve(context: Context): Intent? {
+    /** 開く Intent と、それをどの経路で見つけたか。 */
+    class Resolved(val intent: Intent, val route: String)
+
+    fun resolve(context: Context): Resolved? {
         val pm = context.packageManager
         val global = Intent(SearchManager.INTENT_ACTION_GLOBAL_SEARCH)
 
@@ -29,29 +32,44 @@ object GlobalSearch {
             .firstOrNull { it.activityInfo?.packageName == FINDER_PACKAGE }
             ?.activityInfo
         if (finderHandler != null) {
-            return Intent(global)
-                .setClassName(finderHandler.packageName, finderHandler.name)
-                .withQueryExtras()
-                .also { Log.i(TAG, "open via finder(global-search): ${it.component}") }
+            return Resolved(
+                Intent(global).setClassName(finderHandler.packageName, finderHandler.name).withQueryExtras(),
+                "finder(global-search)",
+            ).also { Log.i(TAG, "open via ${it.route}: ${it.intent.component}") }
         }
 
         pm.getLaunchIntentForPackage(FINDER_PACKAGE)?.let { launch ->
-            return launch
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                .also { Log.i(TAG, "open via finder(launch): ${it.component}") }
+            return Resolved(launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), "finder(launch)")
+                .also { Log.i(TAG, "open via ${it.route}: ${it.intent.component}") }
         }
 
         val manager = context.getSystemService(SearchManager::class.java)
         val component = runCatching { manager?.globalSearchActivity }.getOrNull()
         if (component != null) {
-            return Intent(global)
-                .setComponent(component)
-                .withQueryExtras()
-                .also { Log.i(TAG, "open via global-search: ${it.component}") }
+            return Resolved(Intent(global).setComponent(component).withQueryExtras(), "global-search")
+                .also { Log.i(TAG, "open via ${it.route}: ${it.intent.component}") }
         }
 
         Log.i(TAG, "no device search; falling back to the drawer")
         return null
+    }
+
+    /**
+     * 実機で切り分けるための一覧(#31)。設定画面に出す。
+     * Finder が入っているか、全体検索を名乗る活動は何か、端末が選んでいる全体検索は何か。
+     */
+    fun describe(context: Context): List<String> {
+        val pm = context.packageManager
+        val finderInstalled = runCatching { pm.getPackageInfo(FINDER_PACKAGE, 0) }.isSuccess
+        val handlers = pm.queryIntentActivities(Intent(SearchManager.INTENT_ACTION_GLOBAL_SEARCH), PackageManager.MATCH_DEFAULT_ONLY)
+            .mapNotNull { it.activityInfo?.let { a -> "${a.packageName}/${a.name.substringAfterLast('.')}" } }
+        val global = runCatching { context.getSystemService(SearchManager::class.java)?.globalSearchActivity }.getOrNull()
+        return listOf(
+            "FINDER ${if (finderInstalled) "installed" else "not installed"}" +
+                if (finderInstalled) " launch=${pm.getLaunchIntentForPackage(FINDER_PACKAGE) != null}" else "",
+            "GLOBAL_SEARCH ${handlers.ifEmpty { listOf("none") }.joinToString()}",
+            "DEFAULT ${global?.flattenToShortString() ?: "none"}",
+        )
     }
 
     private fun Intent.withQueryExtras(): Intent = this

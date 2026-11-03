@@ -39,6 +39,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import android.view.HapticFeedbackConstants
+import android.widget.Toast
+import net.shino3.gzf8launcher.data.SwipeDown
+import net.shino3.gzf8launcher.data.SwipeDownSettings
+import net.shino3.gzf8launcher.taskbar.TaskbarMonitor
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.dp
@@ -146,19 +151,32 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
             onCancel = { controller.pruneEmptyPages() },
         )
     }
-    // 端末の全体検索(Galaxy の Finder など)。無ければ自前の一覧を検索欄に焦点を当てて開く
+    // 下スワイプ(#31)。既定は端末の検索(Galaxy の Finder など)。設定で自前の検索や通知パネルにもできる。
+    // 開けなかったときは自前の一覧を検索欄に焦点を当てて開く
     var searchFocus by remember { mutableStateOf(false) }
-    val onSearch: () -> Unit = remember(controller, sheet) {
+    val view = LocalView.current
+    val context = LocalContext.current
+    val onSearch: () -> Unit = remember(controller, sheet, view, context) {
         {
-            if (!controller.openSearch()) {
+            // ジェスチャが成立したことを指に返す。実機で「何も起きない」ときに、手前で止まったのか先で失敗したのかを分けるため
+            view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+            val openAppSearch = {
                 searchFocus = true
                 sheet.open()
+            }
+            when (SwipeDownSettings.action.value) {
+                SwipeDown.DEVICE_SEARCH -> if (!controller.openSearch()) openAppSearch()
+                SwipeDown.APP_SEARCH -> openAppSearch()
+                SwipeDown.NOTIFICATIONS -> if (!TaskbarMonitor.openNotifications()) {
+                    // 黙って何も起きないのは避ける(原則 5)。理由を出して、代わりに検索を開く
+                    Toast.makeText(context, "通知パネルを開くには 設定 → TASKBAR のユーザー補助を ON にしてください", Toast.LENGTH_LONG).show()
+                    openAppSearch()
+                }
             }
         }
     }
     LaunchedEffect(sheet.progress > 0f) { if (sheet.progress == 0f) searchFocus = false }
     val gestures = remember(sheet, onSearch) { HomeGestures(sheet, onSearch) }
-    val view = LocalView.current
     // actions は remember で作るため、編集中かどうかは最新の値を読む入れ物越しに見る
     val editingNow = rememberUpdatedState(editing)
     val actions = remember(controller, view) {
