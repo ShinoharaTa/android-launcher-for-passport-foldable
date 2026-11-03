@@ -20,6 +20,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.layout.isImeVisible
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -96,6 +100,9 @@ fun AppDrawer(
     val chips = remember(apps) { availableFilters(apps) }
     val shown = remember(apps, usage, query, filter) { applyFilter(filterApps(apps, query), filter, usage) }
     val needsUsage = filter is DrawerFilter.Recent || filter is DrawerFilter.Frequent
+    // キーボードが出ているか(#14)。開いた横長の画面ではキーボードが下の 6 割を覆い、結果が 1 段も見えなくなる
+    @OptIn(ExperimentalLayoutApi::class)
+    val typing = WindowInsets.isImeVisible
 
     // 検索語や絞り込みが変わったら先頭に戻す
     LaunchedScrollReset(query, filter, gridState)
@@ -110,7 +117,8 @@ fun AppDrawer(
             .navigationBarsPadding()
             .imePadding(),
     ) {
-        DragHandle(sheet)
+        // 入力中は取っ手と絞り込みの列を畳んで、結果に場所を譲る。閉じるのは Back でできる
+        if (!typing) DragHandle(sheet)
         SearchField(
             query = query,
             onQueryChange = { query = it },
@@ -118,7 +126,11 @@ fun AppDrawer(
             focusSearch = focusSearch,
             onSubmit = { shown.firstOrNull()?.let { onLaunch(it, Rect.Zero) } },
         )
-        FilterChips(chips = chips, selected = filter, onSelect = { filter = if (filter == it) null else it })
+        when {
+            !typing -> FilterChips(chips = chips, selected = filter, onSelect = { filter = if (filter == it) null else it })
+            // 入力中でも、選んでいる絞り込みは効いていることが分かるように 1 つだけ残す。押せば外れる
+            filter != null -> FilterChips(chips = listOfNotNull(filter), selected = filter, onSelect = { filter = null })
+        }
         if (picked.isNotEmpty()) {
             SelectionBar(count = picked.size) { picked = emptySet() }
         }
@@ -134,11 +146,23 @@ fun AppDrawer(
                 .nestedScroll(sheet.closeOnOverscroll(DEAD_ZONE)),
             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
         ) {
-            items(shown, key = { it.key.toString() }) { entry ->
+            itemsIndexed(shown, key = { _, it -> it.key.toString() }) { index, entry ->
                 val selected = entry.key in picked
                 // 選択中は、つまんだ 1 つに残りを載せて束として運ぶ
                 val bundle = if (selected) shown.filter { it.key in picked && it.key != entry.key }.map(toItem) else emptyList()
-                Box(modifier = Modifier.aspectRatio(0.85f)) {
+                // 確定キーで開くのは先頭。検索中はそれが分かるように縁を付ける(#14)
+                val submitTarget = query.isNotEmpty() && index == 0
+                Box(
+                    modifier = Modifier
+                        .aspectRatio(0.85f)
+                        .then(
+                            if (submitTarget) {
+                                Modifier.border(1.5.dp, theme.colors.accent, RoundedCornerShape(theme.moduleRadius))
+                            } else {
+                                Modifier
+                            },
+                        ),
+                ) {
                     AppCell(
                         entry = entry,
                         fallback = entry.label,
