@@ -241,9 +241,28 @@ class LauncherController(private val context: Context, private val scope: Corout
     }
 
     /** 端末の検索(Galaxy の Finder、無ければ全体検索)を開く。どれも無ければ false で、呼び出し側が自前の一覧に落とす。 */
+    /**
+     * 端末の検索を開く。開けたら true。
+     * どの経路で何が起きたかを SwipeDownSettings に残し、設定画面で読めるようにする(#31)。
+     */
     fun openSearch(): Boolean {
-        val intent = GlobalSearch.resolve(context) ?: return false
-        return runCatching { context.startActivity(intent) }.isSuccess
+        val now = System.currentTimeMillis()
+        val resolved = GlobalSearch.resolve(context)
+        if (resolved == null) {
+            SwipeDownSettings.record(SearchAttempt("none", null, ok = false, error = null, at = now))
+            return false
+        }
+        val result = runCatching { context.startActivity(resolved.intent) }
+        SwipeDownSettings.record(
+            SearchAttempt(
+                route = resolved.route,
+                component = resolved.intent.component?.flattenToShortString(),
+                ok = result.isSuccess,
+                error = result.exceptionOrNull()?.let { "${it.javaClass.simpleName}: ${it.message}" },
+                at = now,
+            ),
+        )
+        return result.isSuccess
     }
 
     fun remove(ref: ItemRef) = edit { LayoutEditor.remove(it, ref) }

@@ -45,6 +45,18 @@ object TaskbarMonitor {
     /** 重ねたドックを出すか(#56)。サービスを切らずに止められるように、設定で持つ。 */
     val dockEnabled: StateFlow<Boolean> = _dockEnabled
 
+    /** 動いているサービス。グローバル操作(通知パネルなど)に使う。止まれば null。 */
+    @Volatile
+    internal var service: java.lang.ref.WeakReference<android.accessibilityservice.AccessibilityService>? = null
+
+    /**
+     * 通知パネルを開く(#31)。ランチャーからは公開の API が無く、ユーザー補助のグローバル操作だけが使える。
+     * サービスが動いていなければ false。
+     */
+    fun openNotifications(): Boolean = service?.get()
+        ?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS)
+        ?: false
+
     /** 設定の読み込み。サービスと Activity のどちらが先に動いても同じ値を見る。 */
     fun init(context: Context) {
         _dockEnabled.value = prefs(context).getBoolean(KEY_DOCK_ENABLED, true)
