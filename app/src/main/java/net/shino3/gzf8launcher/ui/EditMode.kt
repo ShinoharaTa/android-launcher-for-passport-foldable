@@ -75,17 +75,22 @@ fun Modifier.jiggle(seed: Int): Modifier {
 
 /**
  * 編集モード中にアイテムの左上へ出す ✕。
+ * dragModifier にはアイテムのつまみ(dragSource)を渡す。✕ の当たり判定はアイコンの左上に重なっていて、
+ * そこから引き始めるとアイテムではなく ✕ が指を受け、ページの下スワイプ(検索)に取られていた(#78)。
+ * 同じ指を ✕ でも受け、動かせば運び、動かさずに離せば消す。
  * 押すと消える。押す場所は #32 の 44dp を取り、見た目の丸はその左上の角に寄せる。
  * 丸を中央に置くと当たり判定の半分がセルの外にはみ出し、ページの縁で切られて当たらなくなる(#53)。
  * 呼び出し側は BADGE_OVERHANG だけ左上へずらして置く。
  */
 @Composable
-fun BoxScopeRemoveBadge(onRemove: () -> Unit) {
+fun BoxScopeRemoveBadge(onRemove: () -> Unit, dragModifier: Modifier = Modifier) {
     val theme = LocalLauncherTheme.current
     val onRemoveNow = rememberUpdatedState(onRemove)
     Box(
         modifier = Modifier
             .size(TAP_MIN)
+            // つまみが先に指を見る。ずれたら運び始めて動きを消費するので、下のタップは成立しない
+            .then(dragModifier)
             .pointerInput(Unit) { detectTapGestures { onRemoveNow.value() } },
         contentAlignment = Alignment.TopStart,
     ) {

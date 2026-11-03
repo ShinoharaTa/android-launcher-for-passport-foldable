@@ -116,12 +116,24 @@ fun ItemView(
             // ドックはレールの形で切られるので、はみ出させない
             val overhang = if (ref is ItemRef.Dock) 0.dp else BADGE_OVERHANG
             Box(modifier = Modifier.align(Alignment.TopStart).offset(x = -overhang, y = -overhang)) {
-                BoxScopeRemoveBadge { actions.onRemove(ref) }
+                BoxScopeRemoveBadge(
+                    onRemove = { actions.onRemove(ref) },
+                    dragModifier = Modifier.dragSource(payloadOf(item, ref, apps, w, h)),
+                )
             }
         }
         return
     }
     ItemBody(item, ref, apps, actions, modifier, showLabel, w, h)
+}
+
+/** アイテムをつまんだときに運ぶもの。本体と、編集モードの ✕ の両方から使う(#78)。 */
+private fun payloadOf(item: Item, ref: ItemRef, apps: Map<AppKey, AppEntry>, w: Int, h: Int): DragPayload = when (item) {
+    is AppItem -> apps[item.key].let { DragPayload(item, ref, it?.icon, it?.label ?: item.fallbackLabel(), w, h) }
+    is FolderItem -> DragPayload(item, ref, null, item.name, w, h)
+    is NativeWidgetItem -> DragPayload(item, ref, null, item.widget, w, h)
+    is ShortcutItem -> DragPayload(item, ref, null, item.label.ifEmpty { item.shortcutId }, w, h)
+    is AppWidgetItem -> DragPayload(item, ref, null, item.provider.substringAfterLast('.').uppercase(), w, h)
 }
 
 @Composable
