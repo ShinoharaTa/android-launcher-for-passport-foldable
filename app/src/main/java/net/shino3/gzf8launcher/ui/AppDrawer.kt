@@ -128,12 +128,12 @@ fun AppDrawer(
             onSubmit = { shown.firstOrNull()?.let { onLaunch(it, Rect.Zero) } },
         )
         when {
+            // 選んでいるあいだは、絞り込みの列と同じ高さで入れ替える。
+            // 差し込むと一覧が下にずれ、長押しした指の下でアイコンが動く(#44 で避けたのと同じこと、#63)
+            picked.isNotEmpty() -> SelectionBar(count = picked.size) { picked = emptySet() }
             !typing -> FilterChips(chips = chips, selected = filter, onSelect = { filter = if (filter == it) null else it })
             // 入力中でも、選んでいる絞り込みは効いていることが分かるように 1 つだけ残す。押せば外れる
             filter != null -> FilterChips(chips = listOfNotNull(filter), selected = filter, onSelect = { filter = null })
-        }
-        if (picked.isNotEmpty()) {
-            SelectionBar(count = picked.size) { picked = emptySet() }
         }
         if (needsUsage && !usagePermitted) {
             UsagePermissionRow(onRequestUsagePermission)
@@ -349,10 +349,12 @@ private fun SearchField(
 @Composable
 private fun FilterChips(chips: List<DrawerFilter>, selected: DrawerFilter?, onSelect: (DrawerFilter) -> Unit) {
     Row(
+        verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
+            .height(HEADER_ROW_HEIGHT)
             .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+            .padding(horizontal = 12.dp),
     ) {
         chips.forEach { chip ->
             Chip(label = chip.label, selected = chip == selected, modifier = Modifier.padding(end = 8.dp)) { onSelect(chip) }
@@ -387,7 +389,7 @@ private fun SelectionBar(count: Int, onClear: () -> Unit) {
     val theme = LocalLauncherTheme.current
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth().height(HEADER_ROW_HEIGHT).padding(horizontal = 16.dp),
     ) {
         Text(
             text = "$count SELECTED  //  DRAG TO HOME",
@@ -415,3 +417,6 @@ private fun SelectedMark(modifier: Modifier = Modifier) {
         Text("✓", color = theme.colors.surface.copy(alpha = 1f), fontFamily = theme.monoFont, fontSize = 11.sp)
     }
 }
+
+/** 絞り込みの列と選択の帯の高さ。入れ替えても一覧が動かないように揃える(#63)。チップの 44dp に上下 6dp。 */
+private val HEADER_ROW_HEIGHT = TAP_MIN + 12.dp
