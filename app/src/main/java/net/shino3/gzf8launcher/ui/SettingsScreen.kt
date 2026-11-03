@@ -32,6 +32,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import net.shino3.gzf8launcher.data.GlobalSearch
+import net.shino3.gzf8launcher.data.SwipeDown
+import net.shino3.gzf8launcher.data.SwipeDownSettings
 import net.shino3.gzf8launcher.taskbar.TaskbarMonitor
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -123,6 +126,14 @@ fun SettingsScreen(
             }
             Note("SIDE PADDING はグリッドとドックの左右の余白。DOCK INSET はそこからレールを引っ込めて中央に寄せる量で、0 にするとグリッドと同じ幅になる。TOP / BOTTOM INSET はステータスバーとナビゲーションバーの内側に足す余白。アクセント色の値は設定で上書きしている。")
 
+            SectionTitle("SWIPE DOWN")
+            SwipeDownSection()
+            Note(
+                "ホームで下にスワイプしたときに開くもの(#31)。DEVICE SEARCH は Galaxy の Finder、無ければ端末の全体検索。" +
+                    "APP SEARCH はこのランチャーの一覧の検索。NOTIFICATIONS は通知パネルで、下の TASKBAR のユーザー補助が要る。" +
+                    "下の行は、端末の検索として何が見つかったかと、直近に下スワイプしたときの結果。開かないときはこれを教えてください。",
+            )
+
             SectionTitle("TASKBAR")
             TaskbarSection()
             Note(
@@ -195,6 +206,38 @@ private fun StatusRow(label: String, on: Boolean, arrow: Boolean, onClick: () ->
             fontFamily = theme.monoFont,
             fontSize = 12.sp,
         )
+    }
+}
+
+/** 下スワイプの選択と、端末の検索の切り分け用の表示(#31)。 */
+@Composable
+private fun SwipeDownSection() {
+    val theme = LocalLauncherTheme.current
+    val context = LocalContext.current
+    val action by SwipeDownSettings.action.collectAsStateWithLifecycle()
+    val last by SwipeDownSettings.lastAttempt.collectAsStateWithLifecycle()
+    var resumed by remember { mutableIntStateOf(0) }
+    LifecycleResumeEffect(Unit) {
+        resumed++
+        onPauseOrDispose { }
+    }
+    val found = remember(resumed) { GlobalSearch.describe(context) }
+    Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(bottom = 6.dp)) {
+        SwipeDown.entries.forEach { choice ->
+            Chip(choice.label, selected = action == choice, modifier = Modifier.padding(end = 8.dp)) {
+                SwipeDownSettings.set(context, choice)
+            }
+        }
+    }
+    val clock = SimpleDateFormat("HH:mm:ss", Locale.US)
+    val lines = found + listOf(
+        last?.let { a ->
+            val result = if (a.ok) "OK" else "FAILED${a.error?.let { " $it" } ?: ""}"
+            "LAST ${clock.format(Date(a.at))} ${a.route} ${a.component ?: ""} $result"
+        } ?: "LAST -",
+    )
+    lines.forEach {
+        Text(it, color = theme.colors.textDim, fontFamily = theme.monoFont, fontSize = 11.sp, modifier = Modifier.padding(vertical = 2.dp))
     }
 }
 

@@ -65,6 +65,7 @@ class TaskbarService : AccessibilityService() {
         imePackages = getSystemService(InputMethodManager::class.java)?.inputMethodList
             ?.map { it.packageName }?.toSet() ?: emptySet()
         getSystemService(DisplayManager::class.java)?.registerDisplayListener(displayListener, null)
+        TaskbarMonitor.service = java.lang.ref.WeakReference(this)
         TaskbarMonitor.update { it.copy(serviceRunning = true) }
         readScreen()
         scope.launch { reload() }
@@ -106,6 +107,7 @@ class TaskbarService : AccessibilityService() {
 
     override fun onUnbind(intent: Intent?): Boolean {
         if (::overlay.isInitialized) overlay.hide()
+        TaskbarMonitor.service = null
         scope.cancel()
         getSystemService(DisplayManager::class.java)?.unregisterDisplayListener(displayListener)
         TaskbarMonitor.update { it.copy(serviceRunning = false, opened = null, overlayShown = false) }
