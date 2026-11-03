@@ -98,6 +98,8 @@ fun LauncherRoot(controller: LauncherController) {
 @Composable
 private fun LauncherContent(controller: LauncherController, theme: LauncherTheme) {
     val apps by controller.apps.collectAsStateWithLifecycle()
+    val undoOffer by controller.undoOffer.collectAsStateWithLifecycle()
+    val canUndo by controller.canUndo.collectAsStateWithLifecycle()
     val layout by controller.layout.collectAsStateWithLifecycle()
     val usagePermitted by controller.usagePermitted.collectAsStateWithLifecycle()
     val usage by controller.usage.collectAsStateWithLifecycle()
@@ -272,6 +274,15 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
                     } else {
                         PagedSurface(layout, apps, actions, coverPager, gestures, onCreatePage = { controller.addPage() }, sidePadding = pageSidePadding)
                     }
+                    // 元に戻すの帯(#66)。ページの下端に浮かせ、ドックの位置は動かさない
+                    undoOffer?.let { offer ->
+                        UndoBar(
+                            offer = offer,
+                            onUndo = { controller.undo() },
+                            onTimeout = { controller.dismissUndoOffer(offer.id) },
+                            modifier = Modifier.align(Alignment.BottomCenter),
+                        )
+                    }
                 }
                 // ドックはどの面でも上スワイプでドロワー、下スワイプで検索
                 Dock(
@@ -289,6 +300,7 @@ private fun LauncherContent(controller: LauncherController, theme: LauncherTheme
                         onOpenWidgets = { overlay = Overlay.Widgets(Rect.Zero) },
                         onOpenSettings = { overlay = Overlay.Settings(Rect.Zero) },
                         onDone = { editing = false; selected = null },
+                        onUndo = if (canUndo) ({ controller.undo() }) else null,
                     )
                 }
             }
