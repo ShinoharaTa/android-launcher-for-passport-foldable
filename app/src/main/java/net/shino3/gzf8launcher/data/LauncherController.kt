@@ -34,6 +34,7 @@ import net.shino3.gzf8launcher.theme.ThemeRepository
 import net.shino3.gzf8launcher.theme.ThemeSpec
 import net.shino3.gzf8launcher.widget.AppWidgetHostManager
 import net.shino3.gzf8launcher.model.FolderItem
+import net.shino3.gzf8launcher.model.Item
 import net.shino3.gzf8launcher.model.ItemRef
 import net.shino3.gzf8launcher.model.Layout
 import net.shino3.gzf8launcher.model.LayoutEditor
@@ -222,7 +223,7 @@ class LauncherController(private val context: Context, private val scope: Corout
                 placedLayout = spill.first
                 left = spill.second
             }
-            edit { placedLayout }
+            edit(undo = "PLACED ${p.count} APPS") { placedLayout }
             return true
         }
         val next = when (target) {
@@ -236,7 +237,8 @@ class LauncherController(private val context: Context, private val scope: Corout
         if (item is ShortcutItem && p.source == null) {
             scope.launch { withContext(Dispatchers.IO) { shortcutRepository.pin(item) } }
         }
-        edit { next }
+        // 1 個ずつの並べ替えは帯を出さずに覚える。編集バーの UNDO から戻せる
+        edit(undo = "${if (p.source == null) "PLACED" else "MOVED"} // ${labelOf(item)}", announce = false) { next }
         return true
     }
 
@@ -246,7 +248,10 @@ class LauncherController(private val context: Context, private val scope: Corout
         return runCatching { context.startActivity(intent) }.isSuccess
     }
 
-    fun remove(ref: ItemRef) = edit { LayoutEditor.remove(it, ref) }
+    fun remove(ref: ItemRef) {
+        val item = LayoutEditor.itemAt(layout.value, ref) ?: return
+        edit(undo = "REMOVED // ${labelOf(item)}") { LayoutEditor.remove(it, ref) }
+    }
 
     fun renameFolder(ref: ItemRef, name: String) = edit { LayoutEditor.rename(it, ref, name) }
 
@@ -329,16 +334,85 @@ class LauncherController(private val context: Context, private val scope: Corout
         pendingAppWidget = null
     }
 
-    /** 拒否された(null を返した)操作はレイアウトを変えない。消えた AppWidget の ID は解放する。 */
-    private fun edit(transform: (Layout) -> Layout?) {
+    /**
+     * 拒否された(null を返した)操作はレイアウトを変えない。消えた AppWidget の ID は解放する。
+     *
+     * undo を渡した操作は、変える前の配置を覚えて元に戻せるようにする(#66)。
+     * announce なら下端に「元に戻す」の帯を出す。一括の操作と削除だけ出し、1 個ずつの並べ替えは黙って覚える。
+     */
+    private fun edit(undo: String? = null, announce: Boolean = true, transform: (Layout) -> Layout?) {
         scope.launch {
             layoutRepository.update { layout ->
                 val next = transform(layout) ?: return@update layout
-                (appWidgetIds(layout) - appWidgetIds(next)).forEach { appWidgets.deleteId(it) }
+                val dropped = if (undo != null) remember(layout, undo, announce) else null
+                val gone = appWidgetIds(layout) - appWidgetIds(next) + (dropped?.let { appWidgetIds(it.layout) } ?: emptySet())
+                releaseAppWidgetIds(gone, next)
                 next
             }
         }
     }
+
+    // ---- 元に戻す(#66) ----
+
+    /** 下端に出す「元に戻す」の帯。id は帯を出し直すたびに変わり、消す時機の取り違えを防ぐ。 */
+    class UndoOffer(val id: Long, val label: String)
+
+    private class Snapshot(val layout: Layout, val label: String)
+
+    /** 変える前の配置。新しいものが末尾。 */
+    private val history = ArrayDeque<Snapshot>()
+    private var undoSeq = 0L
+    private val _undoOffer = MutableStateFlow<UndoOffer?>(null)
+    val undoOffer: StateFlow<UndoOffer?> = _undoOffer
+    private val _canUndo = MutableStateFlow(false)
+    val canUndo: StateFlow<Boolean> = _canUndo
+
+    /** 覚える。あふれた一番古いものを返す(その中の AppWidget の ID を解放するため)。 */
+    private fun remember(layout: Layout, label: String, announce: Boolean): Snapshot? {
+        history.addLast(Snapshot(layout, label))
+        val dropped = if (history.size > UNDO_DEPTH) history.removeFirst() else null
+        _canUndo.value = true
+        if (announce) _undoOffer.value = UndoOffer(++undoSeq, label)
+        return dropped
+    }
+
+    /** 直前の操作を取り消す。覚えているものが無ければ何もしない。 */
+    fun undo() {
+        val snapshot = history.removeLastOrNull() ?: return
+        _canUndo.value = history.isNotEmpty()
+        _undoOffer.value = null
+        scope.launch {
+            layoutRepository.update { current ->
+                // 戻した後に無くなる AppWidget(取り消した操作で足したもの)は解放する
+                releaseAppWidgetIds(appWidgetIds(current) - appWidgetIds(snapshot.layout), snapshot.layout)
+                snapshot.layout
+            }
+        }
+    }
+
+    /** 帯を消す。時間切れで呼ぶ。別の帯に替わっていたら何もしない。 */
+    fun dismissUndoOffer(id: Long) {
+        if (_undoOffer.value?.id == id) _undoOffer.value = null
+    }
+
+    /**
+     * AppWidget の ID を解放する。ただし、いまの配置か、覚えている配置のどれかに残っているものは残す。
+     * 先に解放すると、元に戻したときにウィジェットが空になる。
+     */
+    private fun releaseAppWidgetIds(candidates: Set<Int>, current: Layout) {
+        if (candidates.isEmpty()) return
+        val keep = appWidgetIds(current) + history.flatMap { appWidgetIds(it.layout) }
+        (candidates - keep).forEach { appWidgets.deleteId(it) }
+    }
+
+    /** 帯に出す名前。大文字の等幅で出すので短く。 */
+    private fun labelOf(item: Item): String = when (item) {
+        is AppItem -> _apps.value[item.key]?.label ?: item.component.substringAfterLast('.')
+        is FolderItem -> item.name.ifEmpty { "FOLDER" }
+        is NativeWidgetItem -> item.widget
+        is AppWidgetItem -> item.provider.substringAfterLast('.')
+        is ShortcutItem -> item.label.ifEmpty { item.shortcutId }
+    }.uppercase()
 
     private fun appWidgetIds(layout: Layout): Set<Int> =
         layout.allZones()
@@ -363,3 +437,6 @@ private const val TAG = "LauncherController"
 
 /** 束があふれたときに作り足すページの上限。無限に増やさないための歯止め。 */
 private const val MAX_OVERFLOW_PAGES = 8
+
+/** 元に戻せる回数(#66)。 */
+private const val UNDO_DEPTH = 10

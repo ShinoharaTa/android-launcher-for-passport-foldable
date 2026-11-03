@@ -113,6 +113,8 @@ fun EditBar(
     onOpenSettings: () -> Unit,
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
+    /** 元に戻せるあいだだけ渡す(#66)。帯が消えたあとも、編集中はここから戻せる。 */
+    onUndo: (() -> Unit)? = null,
 ) {
     val theme = LocalLauncherTheme.current
     val shape = theme.shapeOf(theme.moduleRadius + 6.dp)
@@ -131,9 +133,53 @@ fun EditBar(
         TextAction("WALLPAPER", accent = false) { onOpenWallpaper() }
         TextAction("WIDGETS", accent = false) { onOpenWidgets() }
         TextAction("SETTINGS", accent = false) { onOpenSettings() }
+        if (onUndo != null) TextAction("UNDO", accent = false) { onUndo() }
         TextAction("DONE") { onDone() }
     }
 }
+
+/**
+ * 一括の操作や削除のあとに下端へ出す帯(#66)。時間が来たら消える。
+ * ページの上に浮かせ、ホームの配置は動かさない(指の下でアイコンがずれないように、#44)。
+ */
+@Composable
+fun UndoBar(
+    offer: net.shino3.gzf8launcher.data.LauncherController.UndoOffer,
+    onUndo: () -> Unit,
+    onTimeout: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val theme = LocalLauncherTheme.current
+    val onTimeoutNow = rememberUpdatedState(onTimeout)
+    androidx.compose.runtime.LaunchedEffect(offer.id) {
+        kotlinx.coroutines.delay(UNDO_SHOWN_MILLIS)
+        onTimeoutNow.value()
+    }
+    val shape = theme.shapeOf(theme.moduleRadius + 6.dp)
+    Row(
+        modifier = modifier
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .clip(shape)
+            .background(theme.colors.surface.copy(alpha = 1f))
+            .border(1.dp, if (theme.decor.outlines) theme.outline else theme.colors.line, shape)
+            .padding(start = 16.dp, end = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = offer.label,
+            color = theme.colors.text,
+            fontFamily = theme.monoFont,
+            fontSize = 12.sp,
+            maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f, fill = false),
+        )
+        TextAction("UNDO", modifier = Modifier.padding(start = 12.dp)) { onUndo() }
+    }
+}
+
+/** 帯を出しておく時間。読んで指を動かせる長さ。 */
+private const val UNDO_SHOWN_MILLIS = 6_000L
 
 /** 揺れの振れ幅(度)。大きすぎるとアイコンの形が読みにくくなる。 */
 private const val JIGGLE_DEGREES = 1.1f
